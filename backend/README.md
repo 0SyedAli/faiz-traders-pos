@@ -56,3 +56,12 @@ GET /api/dashboard
 GET/POST /api/expenses
 GET/POST /api/expenses/categories
 ```
+
+
+## Inventory Transfer APIs
+
+```txt
+POST /api/inventory/transfer
+GET  /api/inventory/transfers
+GET  /api/inventory/valuation
+```

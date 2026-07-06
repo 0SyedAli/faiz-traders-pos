@@ -93,3 +93,53 @@ Sales return flow
 PDF invoice
 Reports
 ```
+
+
+## Update v2
+
+Products UI completed:
+
+```txt
+Create/edit/delete product
+Create/edit/delete product variant
+Search variants by name/SKU/barcode/brand/size/category
+Pipe 20ft preset
+Fitting preset
+Retail, wholesale, plumber, dealer price fields
+Size, brand, category, unit dropdowns
+```
+
+Backend product APIs completed:
+
+```txt
+GET/POST/PUT/DELETE /api/products
+GET/POST/PUT/DELETE /api/products/variants
+```
+
+
+## Update v3
+
+Inventory + godown system completed:
+
+```txt
+Opening stock / exact stock adjustment
+Warehouse-wise stock list
+Search stock by item/SKU/brand/size/warehouse
+Low stock and out of stock indicators
+Inventory valuation by purchase and retail value
+Godown to shop stock transfer
+Multi-item stock transfer
+Recent transfer history
+Stock movement history with filters
+```
+
+Backend added:
+
+```txt
+StockTransfer model
+POST /api/inventory/transfer
+GET  /api/inventory/transfers
+GET  /api/inventory/valuation
+```
+
+Note: Inventory transfer API is local MongoDB friendly and does not require a replica set transaction setup.

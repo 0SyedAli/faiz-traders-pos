@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { Product } from "../../models/Product";
 import { ProductVariant } from "../../models/ProductVariant";
+import { WarehouseStock } from "../../models/WarehouseStock";
 import { requireAdmin } from "../../middlewares/auth.middleware";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { sendResponse } from "../../utils/sendResponse";
@@ -91,7 +92,7 @@ productRoutes.get(
       .populate("sizeId", "name")
       .populate("unitId", "name shortName")
       .sort({ createdAt: -1 })
-      .limit(100);
+      .limit(300);
 
     sendResponse(res, 200, "Product variant list.", variants);
   })
@@ -103,8 +104,11 @@ productRoutes.post(
     const body = variantSchema.parse(req.body);
     const variant = await ProductVariant.create({
       ...body,
-      sku: body.sku.toUpperCase()
+      sku: body.sku.toUpperCase(),
+      barcode: body.barcode || undefined,
+      sizeId: body.sizeId || null
     });
+
     sendResponse(res, 201, "Product variant created.", variant);
   })
 );
@@ -128,13 +132,81 @@ productRoutes.put(
   "/variants/:id",
   asyncHandler(async (req, res) => {
     const body = variantSchema.partial().parse(req.body);
-    const update = body.sku ? { ...body, sku: body.sku.toUpperCase() } : body;
+
+    const update = {
+      ...body,
+      ...(body.sku ? { sku: body.sku.toUpperCase() } : {}),
+      ...(body.barcode === "" ? { barcode: undefined } : {}),
+      ...(body.sizeId === "" ? { sizeId: null } : {})
+    };
 
     const variant = await ProductVariant.findByIdAndUpdate(req.params.id, update, {
-      new: true
+      new: true,
+      runValidators: true
     });
 
     if (!variant) throw new ApiError(404, "Product variant not found.");
     sendResponse(res, 200, "Product variant updated.", variant);
+  })
+);
+
+productRoutes.delete(
+  "/variants/:id",
+  asyncHandler(async (req, res) => {
+    const stockDocs = await WarehouseStock.find({ productVariantId: req.params.id });
+    const hasStock = stockDocs.some((stock) => stock.quantity > 0);
+
+    if (hasStock) {
+      throw new ApiError(400, "Cannot delete variant because it has stock. Set stock to 0 first.");
+    }
+
+    await WarehouseStock.deleteMany({ productVariantId: req.params.id });
+    const variant = await ProductVariant.findByIdAndDelete(req.params.id);
+
+    if (!variant) throw new ApiError(404, "Product variant not found.");
+    sendResponse(res, 200, "Product variant deleted.", variant);
+  })
+);
+
+productRoutes.get(
+  "/:id",
+  asyncHandler(async (req, res) => {
+    const product = await Product.findById(req.params.id)
+      .populate("categoryId", "name")
+      .populate("brandId", "name");
+
+    if (!product) throw new ApiError(404, "Product not found.");
+    sendResponse(res, 200, "Product detail.", product);
+  })
+);
+
+productRoutes.put(
+  "/:id",
+  asyncHandler(async (req, res) => {
+    const body = productSchema.partial().parse(req.body);
+
+    const product = await Product.findByIdAndUpdate(req.params.id, body, {
+      new: true,
+      runValidators: true
+    });
+
+    if (!product) throw new ApiError(404, "Product not found.");
+    sendResponse(res, 200, "Product updated.", product);
+  })
+);
+
+productRoutes.delete(
+  "/:id",
+  asyncHandler(async (req, res) => {
+    const variantCount = await ProductVariant.countDocuments({ productId: req.params.id });
+
+    if (variantCount > 0) {
+      throw new ApiError(400, "Cannot delete product because it has variants. Delete variants first.");
+    }
+
+    const product = await Product.findByIdAndDelete(req.params.id);
+    if (!product) throw new ApiError(404, "Product not found.");
+
+    sendResponse(res, 200, "Product deleted.", product);
   })
 );
