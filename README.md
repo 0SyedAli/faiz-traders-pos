@@ -143,3 +143,132 @@ GET  /api/inventory/valuation
 ```
 
 Note: Inventory transfer API is local MongoDB friendly and does not require a replica set transaction setup.
+
+
+## Update v4
+
+Purchase + supplier module completed:
+
+```txt
+Supplier CRUD
+Supplier opening payable balance
+Supplier payable ledger
+Supplier payment entry
+Purchase create
+Purchase history
+Multi-item purchase
+Purchase stock auto-increase in selected warehouse/godown
+Supplier payable auto-update
+Supplier ledger auto-update
+Stock movement auto-create for purchases
+```
+
+Backend added:
+
+```txt
+backend/src/modules/suppliers/supplier.routes.ts
+backend/src/modules/purchases/purchase.routes.ts
+```
+
+Frontend updated:
+
+```txt
+frontend/src/app/suppliers/page.tsx
+frontend/src/app/purchases/page.tsx
+```
+
+
+## Update v5
+
+Expenses, reports, and settings pages completed:
+
+```txt
+Expense CRUD
+Expense category CRUD
+Expense date/category filters
+Reports summary cards
+Expenses by category report
+Inventory value report
+Low/out stock report
+Stock movement report
+Business settings update
+Brands/categories/sizes/units quick management
+Warehouses/godowns quick management
+```
+
+Backend added:
+
+```txt
+backend/src/modules/settings/settings.routes.ts
+backend/src/modules/reports/report.routes.ts
+```
+
+Frontend completed:
+
+```txt
+frontend/src/app/expenses/page.tsx
+frontend/src/app/reports/page.tsx
+frontend/src/app/settings/page.tsx
+```
+
+
+## Update v6
+
+Customers / plumbers khata module completed:
+
+```txt
+Customer/plumber/contractor/dealer CRUD
+Customer search and type filter
+Opening balance support
+Customer ledger
+Receive payment
+Manual debit/credit adjustment
+Customer balance summary
+Total khata/udhaar dashboard cards
+Delete safety for walk-in, balance, and sales history
+```
+
+Backend updated:
+
+```txt
+backend/src/modules/customers/customer.routes.ts
+```
+
+Frontend completed:
+
+```txt
+frontend/src/app/customers/page.tsx
+```
+
+
+## Update v7
+
+POS sales module completed:
+
+```txt
+POS product search by warehouse/shop
+Search by name/SKU/barcode
+Add to cart
+Quantity, price, line discount
+Bill discount
+Walk-in sale
+Plumber/dealer/wholesale sale type pricing
+Cash/bank/easypaisa/jazzcash/mixed payment
+Credit/khata sale for non-walk-in customers
+Stock auto-decrease
+Customer ledger auto-update for due/khata
+Today sales list
+Last invoice summary
+```
+
+Backend added:
+
+```txt
+backend/src/modules/sales/sale.routes.ts
+```
+
+Frontend completed:
+
+```txt
+frontend/src/app/pos/page.tsx
+```

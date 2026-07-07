@@ -27,13 +27,20 @@ const purchaseSchema = new Schema(
     paidAmount: { type: Number, default: 0 },
     dueAmount: { type: Number, default: 0 },
 
+    paymentMethod: {
+      type: String,
+      default: "cash",
+      enum: ["cash", "bank", "easypaisa", "jazzcash", "cheque", "credit", "other"]
+    },
+
     paymentStatus: {
       type: String,
       default: "unpaid",
       enum: ["paid", "partial", "unpaid"]
     },
 
-    note: { type: String, trim: true }
+    note: { type: String, trim: true },
+    createdBy: { type: Schema.Types.ObjectId, ref: "AdminUser", default: null }
   },
   { timestamps: true }
 );
