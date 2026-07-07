@@ -585,7 +585,7 @@ export default function PosPage() {
               </div>
             </div>
 
-            <div className="payment-summary" style={{ marginBottom: 20 }}>
+            <div className="payment-summary">
               <div><span>Grand Total</span><strong>{money(totals.grandTotal)}</strong></div>
               <div><span>Paid</span><strong>{money(totals.paid)}</strong></div>
               <div><span>Due / Khata</span><strong className={totals.due > 0 ? "danger-text" : ""}>{money(totals.due)}</strong></div>

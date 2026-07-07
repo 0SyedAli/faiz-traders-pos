@@ -272,3 +272,34 @@ Frontend completed:
 ```txt
 frontend/src/app/pos/page.tsx
 ```
+
+
+## Update v8
+
+Sales returns / plumber leftover return module completed:
+
+```txt
+Select sale invoice
+View returnable items
+Prevent return quantity greater than sold/remaining
+Return resellable items to stock
+Mark returned items as damaged
+Stock movement for returns/damaged returns
+Adjust plumber/customer khata balance
+Cash/no-refund return options
+Return history
+Sidebar link for Sales Returns
+```
+
+Backend added:
+
+```txt
+backend/src/models/SalesReturn.ts
+backend/src/modules/salesReturns/salesReturn.routes.ts
+```
+
+Frontend added:
+
+```txt
+frontend/src/app/sales-returns/page.tsx
+```

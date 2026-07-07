@@ -121,3 +121,13 @@ GET /api/sales
 POST /api/sales
 GET /api/sales/:id
 ```
+
+
+## Sales Return APIs
+
+```txt
+GET /api/sales-returns
+GET /api/sales-returns/sale/:saleId
+POST /api/sales-returns
+GET /api/sales-returns/:id
+```
