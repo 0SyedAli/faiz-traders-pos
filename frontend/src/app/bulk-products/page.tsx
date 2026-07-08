@@ -1,13 +1,11 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
+import * as XLSX from "xlsx";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { api } from "@/lib/api";
 
-const template = `productName,variantName,sku,barcode,brandName,categoryName,sizeName,unitName,saleUnit,baseUnit,lengthPerPiece,purchasePrice,retailPrice,wholesalePrice,plumberPrice,dealerPrice,lowStockAlertQty,allowDecimalQty,openingStock,warehouseName
-PVC Pipe,PVC Pipe 1/2 Steelex 20ft,STX-PIPE-12,,Steelex,Pipes,1/2,Length,length,feet,20,500,650,620,600,590,5,false,20,Main Shop
-PVC Pipe,PVC Pipe 3/4 Steelex 20ft,STX-PIPE-34,,Steelex,Pipes,3/4,Length,length,feet,20,700,850,820,800,790,5,false,15,Main Shop
-Elbow,Elbow 1/2 Steelex,STX-ELBOW-12,,Steelex,Pipe Fittings,1/2,Piece,piece,piece,0,35,50,48,45,45,20,false,100,Main Shop`;
+const template = ``;
 
 type ImportResult = {
   created: { row: number; sku: string; name: string }[];
@@ -16,8 +14,8 @@ type ImportResult = {
   totalRows: number;
 };
 
-const parseBool = (value: string) => ["true", "yes", "1", "y"].includes(String(value || "").trim().toLowerCase());
-const parseNum = (value: string) => Number(String(value || "0").trim() || 0);
+const parseBool = (value: any) => ["true", "yes", "1", "y"].includes(String(value || "").trim().toLowerCase());
+const parseNum = (value: any) => Number(String(value || "0").trim() || 0);
 
 const parseCsvLine = (line: string) => {
   const result: string[] = [];
@@ -56,6 +54,21 @@ const requiredHeaders = [
   "retailPrice"
 ];
 
+const normalizeHeader = (value: any) => String(value || "").trim();
+
+const rowsToCsv = (rows: Record<string, any>[]) => {
+  if (!rows.length) return template;
+  const headers = Object.keys(rows[0]);
+  const escape = (value: any) => {
+    const text = String(value ?? "");
+    if (text.includes(",") || text.includes('"') || text.includes("\n")) {
+      return `"${text.replace(/"/g, '""')}"`;
+    }
+    return text;
+  };
+  return [headers.join(","), ...rows.map((row) => headers.map((h) => escape(row[h])).join(","))].join("\n");
+};
+
 export default function BulkProductsPage() {
   const [csv, setCsv] = useState(template);
   const [saving, setSaving] = useState(false);
@@ -77,6 +90,48 @@ export default function BulkProductsPage() {
     });
   }, [csv]);
 
+  const handleFileUpload = async (file?: File | null) => {
+    if (!file) return;
+
+    setError("");
+    setResult(null);
+
+    const ext = file.name.split(".").pop()?.toLowerCase();
+
+    try {
+      if (ext === "xlsx" || ext === "xls") {
+        const data = await file.arrayBuffer();
+        const workbook = XLSX.read(data, { type: "array" });
+        const sheetName = workbook.SheetNames.includes("Products")
+          ? "Products"
+          : workbook.SheetNames[0];
+
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonRows = XLSX.utils.sheet_to_json<Record<string, any>>(worksheet, {
+          defval: "",
+          raw: false as any
+        } as any);
+
+        if (!jsonRows.length) throw new Error("Excel sheet empty hai.");
+
+        const normalizedRows = jsonRows.map((row) => {
+          const next: Record<string, any> = {};
+          Object.entries(row).forEach(([key, value]) => {
+            next[normalizeHeader(key)] = value;
+          });
+          return next;
+        });
+
+        setCsv(rowsToCsv(normalizedRows));
+      } else {
+        const text = await file.text();
+        setCsv(text);
+      }
+    } catch (err: any) {
+      setError(err.message || "File read failed.");
+    }
+  };
+
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     setError("");
@@ -85,18 +140,42 @@ export default function BulkProductsPage() {
 
     try {
       const lines = csv.split(/\r?\n/).filter((line) => line.trim());
-      if (lines.length <= 1) throw new Error("CSV me header aur kam az kam 1 product row honi chahiye.");
+      if (lines.length <= 1) throw new Error("CSV/Excel me header aur kam az kam 1 product row honi chahiye.");
 
       const headers = parseCsvLine(lines[0]).map((h) => h.trim());
       const missing = requiredHeaders.filter((header) => !headers.includes(header));
       if (missing.length) throw new Error(`Missing required columns: ${missing.join(", ")}`);
 
-      const items = lines.slice(1).map((line) => {
+      const duplicateSku = new Map<string, number>();
+      const duplicateCombo = new Map<string, number>();
+
+      const items = lines.slice(1).map((line, rowIndex) => {
         const cols = parseCsvLine(line);
         const row: Record<string, string> = {};
         headers.forEach((header, i) => {
           row[header] = cols[i] || "";
         });
+
+        const rowNo = rowIndex + 2;
+        const skuKey = String(row.sku || "").trim().toUpperCase();
+        const comboKey = [
+          row.productName,
+          row.brandName,
+          row.categoryName,
+          row.sizeName,
+          row.gauge,
+          row.saleUnit
+        ].map((x) => String(x || "").trim().toLowerCase()).join("|");
+
+        if (duplicateSku.has(skuKey)) {
+          throw new Error(`Duplicate upload row: SKU "${row.sku}" row ${rowNo} me duplicate hai. Pehle row ${duplicateSku.get(skuKey)} me aa chuka hai.`);
+        }
+        duplicateSku.set(skuKey, rowNo);
+
+        if (duplicateCombo.has(comboKey)) {
+          throw new Error(`Duplicate upload row: same product/brand/category/size/gauge/saleUnit row ${rowNo} me duplicate hai. Pehle row ${duplicateCombo.get(comboKey)} me aa chuka hai.`);
+        }
+        duplicateCombo.set(comboKey, rowNo);
 
         return {
           productName: row.productName,
@@ -106,6 +185,7 @@ export default function BulkProductsPage() {
           brandName: row.brandName,
           categoryName: row.categoryName,
           sizeName: row.sizeName,
+          gauge: row.gauge,
           unitName: row.unitName,
           saleUnit: row.saleUnit || "piece",
           baseUnit: row.baseUnit || "piece",
@@ -140,8 +220,11 @@ export default function BulkProductsPage() {
       <div className="page-header">
         <div>
           <h2>Bulk Product Import</h2>
-          <p>CSV paste karo aur multiple products/variants ek sath import karo. Stock bhi auto add ho sakta hai.</p>
+          <p>Excel .xlsx ya CSV file upload karo. Gauge/thickness bhi supported hai.</p>
         </div>
+        <a className="btn btn-light" href="/templates/product-import-template.xlsx" download>
+          Download Template
+        </a>
       </div>
 
       {error ? <div className="notice danger">{error}</div> : null}
@@ -153,10 +236,23 @@ export default function BulkProductsPage() {
 
       <div className="card">
         <div className="section-title">
-          <h3>CSV Data</h3>
+          <h3>Upload Excel / CSV</h3>
           <button className="small-btn" type="button" onClick={() => setCsv(template)}>
             Load Sample
           </button>
+        </div>
+
+        <div className="upload-box">
+          <input
+            className="input"
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            onChange={(e) => handleFileUpload(e.target.files?.[0])}
+          />
+          <p>
+            Client se Excel sheet lo, yahan upload karo, preview check karo, phir import.
+            Duplicate SKU ya same Product + Brand + Category + Size + Gauge ko system reject karega.
+          </p>
         </div>
 
         <form onSubmit={submit}>
@@ -170,7 +266,7 @@ export default function BulkProductsPage() {
           <div className="bulk-help">
             <strong>Required columns:</strong> productName, variantName, sku, brandName, categoryName, unitName, purchasePrice, retailPrice
             <br />
-            <strong>Tip:</strong> Excel/Google Sheet me data banao, CSV copy karke yahan paste kar do.
+            <strong>Gauge example:</strong> 3 inch pipe ke liye sizeName = 3 aur gauge = 41 / 64.
           </div>
 
           <button className="btn" disabled={saving || rows.length === 0}>
@@ -194,6 +290,7 @@ export default function BulkProductsPage() {
                   <th>Product</th>
                   <th>SKU</th>
                   <th>Brand</th>
+                  <th>Size/Gauge</th>
                   <th>Price</th>
                   <th>Stock</th>
                 </tr>
@@ -208,11 +305,12 @@ export default function BulkProductsPage() {
                     </td>
                     <td>{row.sku}</td>
                     <td>{row.brandName}</td>
+                    <td>{row.sizeName || "-"} / {row.gauge || "-"}</td>
                     <td>{row.retailPrice}</td>
                     <td>{row.openingStock || "0"} {row.warehouseName || "Main Shop"}</td>
                   </tr>
                 ))}
-                {rows.length === 0 ? <tr><td colSpan={6}>No rows to preview.</td></tr> : null}
+                {rows.length === 0 ? <tr><td colSpan={7}>No rows to preview.</td></tr> : null}
               </tbody>
             </table>
           </div>
@@ -230,21 +328,21 @@ export default function BulkProductsPage() {
             <>
               <h4>Created</h4>
               <ul className="result-list">
-                {result.created.slice(0, 20).map((item) => (
+                {result.created.slice(0, 30).map((item) => (
                   <li key={`${item.row}-${item.sku}`}>Row {item.row}: {item.sku} — {item.name}</li>
                 ))}
               </ul>
 
               <h4>Skipped</h4>
               <ul className="result-list">
-                {result.skipped.slice(0, 20).map((item) => (
+                {result.skipped.slice(0, 30).map((item) => (
                   <li key={`${item.row}-${item.sku}`}>Row {item.row}: {item.sku} — {item.reason}</li>
                 ))}
               </ul>
 
               <h4>Errors</h4>
               <ul className="result-list error-list">
-                {result.errors.slice(0, 20).map((item) => (
+                {result.errors.slice(0, 50).map((item) => (
                   <li key={`${item.row}-${item.sku}`}>Row {item.row}: {item.sku} — {item.message}</li>
                 ))}
               </ul>

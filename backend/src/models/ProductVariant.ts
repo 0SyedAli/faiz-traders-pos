@@ -11,6 +11,10 @@ const productVariantSchema = new Schema(
     brandId: { type: Schema.Types.ObjectId, ref: "Brand", required: true },
     categoryId: { type: Schema.Types.ObjectId, ref: "Category", required: true },
     sizeId: { type: Schema.Types.ObjectId, ref: "Size", default: null },
+
+    // Optional pipe/fitting thickness or gauge, example: 41, 64, Heavy, Medium.
+    gauge: { type: String, default: "", trim: true },
+
     unitId: { type: Schema.Types.ObjectId, ref: "Unit", required: true },
 
     saleUnit: {
@@ -44,7 +48,15 @@ const productVariantSchema = new Schema(
 productVariantSchema.index({
   name: "text",
   sku: "text",
-  barcode: "text"
+  barcode: "text",
+  gauge: "text"
 });
+
+// Prevent same sellable item from being created again.
+// Same product + brand/category + size + gauge + saleUnit is considered duplicate.
+productVariantSchema.index(
+  { productId: 1, brandId: 1, categoryId: 1, sizeId: 1, gauge: 1, saleUnit: 1 },
+  { unique: true }
+);
 
 export const ProductVariant = mongoose.model("ProductVariant", productVariantSchema);

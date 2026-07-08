@@ -39,6 +39,7 @@ type Variant = {
   brandId?: Master;
   categoryId?: Master;
   sizeId?: Master;
+  gauge?: string;
   unitId?: Master;
 };
 
@@ -58,6 +59,7 @@ type VariantForm = {
   brandId: string;
   categoryId: string;
   sizeId: string;
+  gauge: string;
   unitId: string;
   saleUnit: string;
   baseUnit: string;
@@ -88,6 +90,7 @@ const emptyVariantForm: VariantForm = {
   brandId: "",
   categoryId: "",
   sizeId: "",
+  gauge: "",
   unitId: "",
   saleUnit: "piece",
   baseUnit: "piece",
@@ -183,6 +186,7 @@ export default function ProductsPage() {
         item.brandId?.name,
         item.categoryId?.name,
         item.sizeId?.name,
+        item.gauge,
         item.productId?.name
       ]
         .filter(Boolean)
@@ -257,6 +261,7 @@ export default function ProductsPage() {
         brandId: variantForm.brandId,
         categoryId: variantForm.categoryId,
         sizeId: variantForm.sizeId || null,
+        gauge: variantForm.gauge.trim(),
         unitId: variantForm.unitId,
         saleUnit: variantForm.saleUnit,
         baseUnit: variantForm.baseUnit,
@@ -323,6 +328,7 @@ export default function ProductsPage() {
       brandId: variant.brandId?._id || "",
       categoryId: variant.categoryId?._id || "",
       sizeId: variant.sizeId?._id || "",
+      gauge: variant.gauge || "",
       unitId: variant.unitId?._id || "",
       saleUnit: variant.saleUnit || "piece",
       baseUnit: variant.baseUnit || "piece",
@@ -401,6 +407,7 @@ export default function ProductsPage() {
       baseUnit: "piece",
       lengthPerPiece: "0",
       allowDecimalQty: false,
+      gauge: prev.gauge,
       lowStockAlertQty: "20"
     }));
   };
@@ -673,6 +680,16 @@ export default function ProductsPage() {
                 </div>
 
                 <div className="form-group">
+                  <label>Gauge / Thickness (Optional)</label>
+                  <input
+                    className="input"
+                    value={variantForm.gauge}
+                    onChange={(e) => setVariantForm({ ...variantForm, gauge: e.target.value })}
+                    placeholder="41, 64, Heavy, Medium"
+                  />
+                </div>
+
+                <div className="form-group">
                   <label>Unit</label>
                   <select
                     className="select"
@@ -800,7 +817,7 @@ export default function ProductsPage() {
                     <th>Item</th>
                     <th>SKU / Barcode</th>
                     <th>Brand</th>
-                    <th>Size</th>
+                    <th>Size / Gauge</th>
                     <th>Unit</th>
                     <th>Prices</th>
                     <th>Low Stock</th>
@@ -822,7 +839,7 @@ export default function ProductsPage() {
                           <div className="muted-small">{variant.barcode || "No barcode"}</div>
                         </td>
                         <td>{variant.brandId?.name || "-"}</td>
-                        <td>{variant.sizeId?.name || "-"}</td>
+                        <td>{variant.sizeId?.name || "-"}<div className="muted-small">Gauge: {variant.gauge || "-"}</div></td>
                         <td>
                           {variant.saleUnit}
                           {variant.lengthPerPiece ? <div className="muted-small">{variant.lengthPerPiece} ft / length</div> : null}

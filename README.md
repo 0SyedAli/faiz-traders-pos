@@ -358,3 +358,26 @@ Backend updated:
 backend/src/modules/products/product.routes.ts
 backend/src/modules/dashboard/dashboard.routes.ts
 ```
+
+
+## Update v11
+
+Duplicate restrictions, gauge/thickness, and Excel upload added:
+
+```txt
+Manual duplicate product restricted
+Manual duplicate variant restricted
+Bulk import duplicate row validation
+Bulk import DB duplicate validation
+Optional gauge/thickness field
+Excel .xlsx upload support on Bulk Import page
+Product import template link
+```
+
+Duplicate rule:
+
+```txt
+Product duplicate = same productName + brand + category
+Variant duplicate = same product + brand + category + size + gauge + saleUnit
+SKU and barcode are always unique
+```
