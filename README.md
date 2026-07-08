@@ -303,3 +303,58 @@ Frontend added:
 ```txt
 frontend/src/app/sales-returns/page.tsx
 ```
+
+
+## Update v9
+
+Final core pack completed:
+
+```txt
+Auth guard on dashboard pages
+Auto redirect from login if already logged in
+Sales History page
+Sale invoice detail page
+Printable A4 sale invoice
+Sales returns / plumber leftover return page
+Return voucher detail page
+Printable return voucher
+POS last invoice open link
+Sidebar sales history link
+Sidebar sales returns link
+```
+
+Frontend added:
+
+```txt
+frontend/src/app/sales/page.tsx
+frontend/src/app/sales/[id]/page.tsx
+frontend/src/app/sales-returns/[id]/page.tsx
+```
+
+
+## Update v10
+
+Fixes and bulk import added:
+
+```txt
+Fixed sale detail ObjectId undefined error
+Fixed sales return detail ObjectId undefined error
+Improved dashboard with quick actions, recent sales, purchases, low stock and stock movements
+Added Bulk Product Import page
+Added bulk import API
+Bulk import can create brands/categories/sizes/products/variants automatically
+Bulk import can add opening stock by warehouse
+```
+
+Frontend added:
+
+```txt
+frontend/src/app/bulk-products/page.tsx
+```
+
+Backend updated:
+
+```txt
+backend/src/modules/products/product.routes.ts
+backend/src/modules/dashboard/dashboard.routes.ts
+```

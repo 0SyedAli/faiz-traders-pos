@@ -2,14 +2,17 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 const links = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/pos", label: "POS Sale" },
+  { href: "/sales", label: "Sales History" },
+  { href: "/sales-returns", label: "Sales Returns" },
   { href: "/products", label: "Products" },
+  { href: "/bulk-products", label: "Bulk Import" },
   { href: "/inventory", label: "Inventory" },
   { href: "/customers", label: "Customers / Plumbers" },
-  { href: "/sales-returns", label: "Sales Returns" },
   { href: "/purchases", label: "Purchases" },
   { href: "/suppliers", label: "Suppliers" },
   { href: "/expenses", label: "Expenses" },
@@ -26,12 +29,33 @@ export function DashboardLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const [checkingAuth, setCheckingAuth] = useState(true);
+
+  useEffect(() => {
+    const token = localStorage.getItem("my_store_token");
+    if (!token) {
+      router.replace("/login");
+      return;
+    }
+    setCheckingAuth(false);
+  }, [router]);
 
   const logout = () => {
     localStorage.removeItem("my_store_token");
     localStorage.removeItem("my_store_admin");
     router.push("/login");
   };
+
+  if (checkingAuth) {
+    return (
+      <div className="auth-page">
+        <div className="auth-card">
+          <h1>Loading...</h1>
+          <p>Checking admin session.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="app-shell">
@@ -46,7 +70,7 @@ export function DashboardLayout({
             <Link
               key={link.href}
               href={link.href}
-              className={pathname === link.href ? "active" : ""}
+              className={pathname === link.href || pathname.startsWith(`${link.href}/`) ? "active" : ""}
             >
               {link.label}
             </Link>

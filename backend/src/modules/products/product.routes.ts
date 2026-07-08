@@ -3,6 +3,12 @@ import { z } from "zod";
 import { Product } from "../../models/Product";
 import { ProductVariant } from "../../models/ProductVariant";
 import { WarehouseStock } from "../../models/WarehouseStock";
+import { Brand } from "../../models/Brand";
+import { Category } from "../../models/Category";
+import { Unit } from "../../models/Unit";
+import { Size } from "../../models/Size";
+import { Warehouse } from "../../models/Warehouse";
+import { StockMovement } from "../../models/StockMovement";
 import { requireAdmin } from "../../middlewares/auth.middleware";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { sendResponse } from "../../utils/sendResponse";
@@ -44,6 +50,163 @@ const variantSchema = z.object({
   allowDecimalQty: z.boolean().optional(),
   status: z.enum(["active", "inactive"]).optional()
 });
+
+
+const bulkVariantSchema = z.object({
+  items: z.array(
+    z.object({
+      productName: z.string().min(1),
+      variantName: z.string().min(1),
+      sku: z.string().min(1),
+      barcode: z.string().optional(),
+      brandName: z.string().min(1),
+      categoryName: z.string().min(1),
+      sizeName: z.string().optional(),
+      unitName: z.string().min(1),
+      saleUnit: z.enum(["piece", "length", "feet", "meter", "box", "carton", "set", "bundle", "dozen"]).default("piece"),
+      baseUnit: z.enum(["piece", "feet", "meter"]).default("piece"),
+      lengthPerPiece: z.number().min(0).default(0),
+      purchasePrice: z.number().min(0),
+      retailPrice: z.number().min(0),
+      wholesalePrice: z.number().min(0).optional(),
+      plumberPrice: z.number().min(0).optional(),
+      dealerPrice: z.number().min(0).optional(),
+      lowStockAlertQty: z.number().min(0).optional(),
+      allowDecimalQty: z.boolean().optional(),
+      openingStock: z.number().min(0).optional(),
+      warehouseName: z.string().optional()
+    })
+  ).min(1)
+});
+
+const findOrCreateByName = async (Model: any, name: string, extra: any = {}) => {
+  const cleanName = name.trim();
+  let doc = await Model.findOne({ name: { $regex: `^${cleanName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, $options: "i" } });
+  if (!doc) {
+    doc = await Model.create({ name: cleanName, ...extra });
+  }
+  return doc;
+};
+
+productRoutes.post(
+  "/variants/bulk",
+  asyncHandler(async (req: any, res) => {
+    const body = bulkVariantSchema.parse(req.body);
+
+    const created: any[] = [];
+    const skipped: any[] = [];
+    const errors: any[] = [];
+
+    for (let index = 0; index < body.items.length; index++) {
+      const row = body.items[index];
+
+      try {
+        const existingSku = await ProductVariant.findOne({ sku: row.sku.trim().toUpperCase() });
+        if (existingSku) {
+          skipped.push({ row: index + 1, sku: row.sku, reason: "SKU already exists" });
+          continue;
+        }
+
+        const brand = await findOrCreateByName(Brand, row.brandName);
+        const category = await findOrCreateByName(Category, row.categoryName);
+
+        let unit = await Unit.findOne({
+          $or: [
+            { name: { $regex: `^${row.unitName.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, $options: "i" } },
+            { shortName: { $regex: `^${row.unitName.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, $options: "i" } }
+          ]
+        });
+
+        if (!unit) {
+          unit = await Unit.create({
+            name: row.unitName.trim(),
+            shortName: row.unitName.trim().toLowerCase(),
+            allowDecimal: Boolean(row.allowDecimalQty)
+          });
+        }
+
+        let size: any = null;
+        if (row.sizeName?.trim()) {
+          size = await findOrCreateByName(Size, row.sizeName.trim());
+        }
+
+        let product = await Product.findOne({
+          name: { $regex: `^${row.productName.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, $options: "i" },
+          brandId: brand._id,
+          categoryId: category._id
+        });
+
+        if (!product) {
+          product = await Product.create({
+            name: row.productName.trim(),
+            brandId: brand._id,
+            categoryId: category._id,
+            status: "active"
+          });
+        }
+
+        const variant = await ProductVariant.create({
+          productId: product._id,
+          name: row.variantName.trim(),
+          sku: row.sku.trim().toUpperCase(),
+          barcode: row.barcode?.trim() || undefined,
+          brandId: brand._id,
+          categoryId: category._id,
+          sizeId: size?._id || null,
+          unitId: unit._id,
+          saleUnit: row.saleUnit,
+          baseUnit: row.baseUnit,
+          lengthPerPiece: row.lengthPerPiece || 0,
+          purchasePrice: row.purchasePrice,
+          retailPrice: row.retailPrice,
+          wholesalePrice: row.wholesalePrice || 0,
+          plumberPrice: row.plumberPrice || 0,
+          dealerPrice: row.dealerPrice || 0,
+          lowStockAlertQty: row.lowStockAlertQty || 5,
+          allowDecimalQty: Boolean(row.allowDecimalQty),
+          status: "active"
+        });
+
+        if (row.openingStock && row.openingStock > 0) {
+          const warehouseName = row.warehouseName?.trim() || "Main Shop";
+          const warehouse = await findOrCreateByName(Warehouse, warehouseName, { type: "shop" });
+
+          const stock = await WarehouseStock.findOneAndUpdate(
+            { warehouseId: warehouse._id, productVariantId: variant._id },
+            { $set: { quantity: row.openingStock } },
+            { upsert: true, new: true }
+          );
+
+          await StockMovement.create({
+            warehouseId: warehouse._id,
+            productVariantId: variant._id,
+            type: "opening_stock",
+            quantity: row.openingStock,
+            previousStock: 0,
+            newStock: row.openingStock,
+            referenceType: "bulk_import",
+            note: "Opening stock from bulk product import"
+          });
+        }
+
+        created.push({ row: index + 1, sku: variant.sku, name: variant.name });
+      } catch (error: any) {
+        errors.push({
+          row: index + 1,
+          sku: row.sku,
+          message: error.message || "Import failed"
+        });
+      }
+    }
+
+    sendResponse(res, 201, "Bulk product import completed.", {
+      created,
+      skipped,
+      errors,
+      totalRows: body.items.length
+    });
+  })
+);
 
 productRoutes.get(
   "/",

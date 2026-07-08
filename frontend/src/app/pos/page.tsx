@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { api } from "@/lib/api";
@@ -615,9 +617,7 @@ export default function PosPage() {
                 <p><strong>{lastSale.invoiceNo}</strong></p>
                 <p>Total: {money(lastSale.grandTotal)}</p>
                 <p>Due: {money(lastSale.dueAmount)}</p>
-                <button className="small-btn" type="button" onClick={() => window.print()}>
-                  Print Page
-                </button>
+                <Link className="small-btn" href={`/sales/${lastSale._id}`}>Open Invoice</Link>
               </div>
             ) : null}
           </div>

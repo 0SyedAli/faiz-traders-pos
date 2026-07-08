@@ -1,0 +1,128 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { DashboardLayout } from "@/components/DashboardLayout";
+import { api } from "@/lib/api";
+
+type Settings = { businessName: string; phone?: string; address?: string };
+type SalesReturn = {
+  _id: string; returnNo: string;
+  saleId?: { invoiceNo: string; grandTotal: number; paidAmount: number; dueAmount: number; createdAt: string };
+  customerId?: { name: string; phone?: string; address?: string; customerType: string; currentBalance: number };
+  warehouseId?: { name: string; type: string };
+  items: { productNameSnapshot: string; skuSnapshot: string; quantity: number; unitPrice: number; total: number; condition: string }[];
+  totalReturnAmount: number; refundMethod: string; adjustInKhata: boolean; note?: string; createdAt: string;
+};
+
+const money = (value: number) => `Rs. ${Number(value || 0).toLocaleString()}`;
+
+export default function SalesReturnPrintPage() {
+  const params = useParams<{ id: string }>();
+  const id = params?.id;
+
+  const [salesReturn, setSalesReturn] = useState<SalesReturn | null>(null);
+  const [settings, setSettings] = useState<Settings | null>(null);
+  const [error, setError] = useState("");
+
+  const load = async () => {
+    if (!id || id === "undefined") {
+      setError("Invalid sales return id.");
+      return;
+    }
+
+    setError("");
+    try {
+      const [returnRes, settingsRes] = await Promise.all([
+        api<{ data: SalesReturn }>(`/sales-returns/${id}`),
+        api<{ data: Settings }>("/settings")
+      ]);
+      setSalesReturn(returnRes.data);
+      setSettings(settingsRes.data);
+    } catch (err: any) {
+      setError(err.message || "Return voucher load failed");
+    }
+  };
+
+  useEffect(() => { load(); }, [id]);
+
+  return (
+    <DashboardLayout title="Return Voucher">
+      <div className="page-header no-print">
+        <div><h2>Return Voucher</h2><p>Printable sales return voucher.</p></div>
+        <div className="row-actions">
+          <Link className="btn btn-light" href="/sales-returns">Back</Link>
+          <button className="btn" onClick={() => window.print()} disabled={!salesReturn}>Print Voucher</button>
+        </div>
+      </div>
+
+      {error ? <div className="notice danger no-print">{error}</div> : null}
+
+      {!salesReturn ? (
+        <div className="card">Loading return voucher...</div>
+      ) : (
+        <div className="invoice-paper">
+          <div className="invoice-header">
+            <div>
+              <h1>{settings?.businessName || "Faiz Traders"}</h1>
+              <p>{settings?.address || ""}</p>
+              <p>{settings?.phone || ""}</p>
+            </div>
+            <div className="invoice-meta">
+              <h2>Return Voucher</h2>
+              <p><strong>{salesReturn.returnNo}</strong></p>
+              <p>{new Date(salesReturn.createdAt).toLocaleString()}</p>
+            </div>
+          </div>
+
+          <div className="invoice-grid">
+            <div>
+              <span>Customer</span>
+              <strong>{salesReturn.customerId?.name || "-"}</strong>
+              <p>{salesReturn.customerId?.phone || ""}</p>
+              <p>{salesReturn.customerId?.customerType || ""}</p>
+            </div>
+            <div>
+              <span>Return Info</span>
+              <strong>Against: {salesReturn.saleId?.invoiceNo || "-"}</strong>
+              <p>Method: {salesReturn.refundMethod}</p>
+              <p>Warehouse: {salesReturn.warehouseId?.name || "-"}</p>
+            </div>
+          </div>
+
+          <table className="invoice-table">
+            <thead><tr><th>#</th><th>Item</th><th>SKU</th><th>Qty</th><th>Rate</th><th>Condition</th><th>Total</th></tr></thead>
+            <tbody>
+              {salesReturn.items.map((item, index) => (
+                <tr key={`${item.skuSnapshot}-${index}`}>
+                  <td>{index + 1}</td>
+                  <td><strong>{item.productNameSnapshot}</strong></td>
+                  <td>{item.skuSnapshot}</td>
+                  <td>{item.quantity}</td>
+                  <td>{money(item.unitPrice)}</td>
+                  <td>{item.condition}</td>
+                  <td><strong>{money(item.total)}</strong></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <div className="invoice-bottom">
+            <div className="invoice-note">
+              <h4>Note</h4>
+              <p>{salesReturn.note || "Return received."}</p>
+              <p>Khata Adjusted: {salesReturn.adjustInKhata ? "Yes" : "No"}</p>
+            </div>
+            <div className="invoice-totals">
+              <div><span>Return Amount</span><strong>{money(salesReturn.totalReturnAmount)}</strong></div>
+              <div><span>Refund Method</span><strong>{salesReturn.refundMethod}</strong></div>
+            </div>
+          </div>
+
+          <div className="invoice-footer"><p>Generated by My Store POS ERP</p></div>
+        </div>
+      )}
+    </DashboardLayout>
+  );
+}

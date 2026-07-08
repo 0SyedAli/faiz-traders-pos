@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { api } from "@/lib/api";
@@ -310,7 +312,7 @@ export default function SalesReturnsPage() {
                 </thead>
                 <tbody>
                   {returnableItems.length === 0 ? (
-                    <tr><td colSpan={8}>No returnable item found.</td></tr>
+                    <tr><td colSpan={9}>No returnable item found.</td></tr>
                   ) : (
                     returnableItems.map((item) => {
                       const input = returnItems.find((i) => String(i.productVariantId) === String(item.productVariantId));
@@ -350,12 +352,12 @@ export default function SalesReturnsPage() {
         <div className="section-title"><h3>Recent Returns</h3><span className="badge">{returns.length} returns</span></div>
         <div className="table-wrap">
           <table>
-            <thead><tr><th>Return No</th><th>Invoice</th><th>Customer</th><th>Warehouse</th><th>Items</th><th>Total</th><th>Method</th><th>Date</th></tr></thead>
+            <thead><tr><th>Return No</th><th>Invoice</th><th>Customer</th><th>Warehouse</th><th>Items</th><th>Total</th><th>Method</th><th>Date</th><th>Action</th></tr></thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={8}>Loading...</td></tr>
+                <tr><td colSpan={9}>Loading...</td></tr>
               ) : returns.length === 0 ? (
-                <tr><td colSpan={8}>No returns found.</td></tr>
+                <tr><td colSpan={9}>No returns found.</td></tr>
               ) : (
                 returns.map((ret) => (
                   <tr key={ret._id}>
@@ -369,7 +371,7 @@ export default function SalesReturnsPage() {
                     </td>
                     <td>{money(ret.totalReturnAmount)}</td>
                     <td>{ret.refundMethod}</td>
-                    <td>{new Date(ret.createdAt).toLocaleDateString()}</td>
+                    <td>{new Date(ret.createdAt).toLocaleDateString()}</td><td><Link className="small-btn" href={`/sales-returns/${ret._id}`}>View / Print</Link></td>
                   </tr>
                 ))
               )}
