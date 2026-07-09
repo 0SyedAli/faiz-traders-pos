@@ -5,7 +5,11 @@ import * as XLSX from "xlsx";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { api } from "@/lib/api";
 
-const template = ``;
+const template = `productName,variantName,sku,barcode,brandName,categoryName,sizeName,gauge,unitName,saleUnit,baseUnit,lengthPerPiece,purchasePrice,retailPrice,wholesalePrice,plumberPrice,dealerPrice,lowStockAlertQty,allowDecimalQty,openingStock,warehouseName
+PVC Pipe,PVC Pipe Steelex 3 inch Gauge 41 20ft,STX-PIPE-3-G41,,Steelex,Pipes,3,41,Length,length,feet,20,1200,1450,1400,1375,1350,5,false,10,Main Shop
+PVC Pipe,PVC Pipe Steelex 3 inch Gauge 64 20ft,STX-PIPE-3-G64,,Steelex,Pipes,3,64,Length,length,feet,20,1450,1750,1700,1650,1625,5,false,10,Main Shop
+PVC Pipe,PVC Pipe Steelex 4 inch Gauge 41 20ft,STX-PIPE-4-G41,,Steelex,Pipes,4,41,Length,length,feet,20,1800,2150,2100,2050,2000,5,false,8,Main Shop
+Elbow,Elbow Steelex 3 inch Gauge 41,STX-ELBOW-3-G41,,Steelex,Pipe Fittings,3,41,Piece,piece,piece,0,150,220,210,200,195,20,false,50,Main Shop`;
 
 type ImportResult = {
   created: { row: number; sku: string; name: string }[];

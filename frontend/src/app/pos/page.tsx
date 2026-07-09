@@ -506,7 +506,7 @@ export default function PosPage() {
             <div className="pos-total-box">
               <div><span>Subtotal</span><strong>{money(totals.subtotal)}</strong></div>
               <div>
-                <span>Bill Discount</span>
+                <span className="whitespace-nowrap">Bill Discount</span>
                 <input
                   className="input mini-input"
                   type="number"
@@ -596,7 +596,7 @@ export default function PosPage() {
               ) : null}
             </div>
 
-            <div className="form-group">
+            <div className="form-group" style={{ marginTop: 15 }}>
               <label>Note</label>
               <textarea
                 className="input"

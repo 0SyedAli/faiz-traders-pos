@@ -381,3 +381,36 @@ Product duplicate = same productName + brand + category
 Variant duplicate = same product + brand + category + size + gauge + saleUnit
 SKU and barcode are always unique
 ```
+
+
+## Update v12
+
+UI refresh and sidebar grouping:
+
+```txt
+Dropdown sidebar module groups
+Mobile sidebar drawer
+Cleaner topbar
+Modern cards/tables/forms styling
+Products page tabbed: product form/list and variant form/list
+Bulk Import shortcut in sidebar and products page
+Better responsive layout
+```
+
+## Update v13
+
+Kanakku-inspired UI refresh:
+
+```txt
+White sidebar with slim left rail
+Dropdown menu groups similar to Kanakku layout
+Topbar with breadcrumb, search and actions
+Products page redesigned as clean listing/table
+Export CSV button on products
+New Product side drawer
+Product/variant forms moved into drawer
+Product search is automatic while typing
+Auto-search helper added for old pages that still have Search/Apply buttons
+Success/error messages styled as toast notifications
+Cleaner tables, filters, status toggles and action buttons
+```
