@@ -1,4 +1,4 @@
-# My Store POS ERP Frontend
+# Faiz Traders Frontend
 
 Next.js dashboard skeleton.
 

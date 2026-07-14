@@ -13,79 +13,85 @@ import { requireAdmin } from "../../middlewares/auth.middleware";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { sendResponse } from "../../utils/sendResponse";
 import { ApiError } from "../../utils/apiError";
+import {
+  CATEGORY_CONFIGS,
+  buildDuplicateKey,
+  buildSearchText,
+  getCategoryConfigByName,
+  getCategorySearchAliases
+} from "../../utils/categoryConfig";
 
 export const productRoutes = Router();
-
 productRoutes.use(requireAdmin);
 
 const clean = (value?: string | null) => String(value || "").trim();
 const cleanUpper = (value?: string | null) => clean(value).toUpperCase();
-
 const escapeRegex = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-const exactNameQuery = (name: string) => ({
-  $regex: `^${escapeRegex(clean(name))}$`,
-  $options: "i"
-});
+const exactNameQuery = (name: string) => ({ $regex: `^${escapeRegex(clean(name))}$`, $options: "i" });
 
 const productSchema = z.object({
   name: z.string().min(1),
   categoryId: z.string(),
-  brandId: z.string(),
+  brandId: z.string().optional().nullable(),
   description: z.string().optional(),
   status: z.enum(["active", "inactive"]).optional()
 });
 
-const variantSchema = z.object({
-  productId: z.string(),
+const dynamicVariantSchema = z.object({
+  // Product Name in the new simplified flow.
   name: z.string().min(1),
-  sku: z.string().min(1),
-  barcode: z.string().optional(),
+  productName: z.string().optional(),
+  productId: z.string().optional().nullable(),
+  sku: z.string().optional(),
 
-  brandId: z.string(),
   categoryId: z.string(),
-  sizeId: z.string().nullable().optional(),
-  gauge: z.string().optional(),
-  unitId: z.string(),
+  brandId: z.string().optional().nullable(),
+  brandName: z.string().optional(),
 
-  saleUnit: z.enum(["piece", "length", "feet", "meter", "box", "carton", "set", "bundle", "dozen"]).optional(),
-  baseUnit: z.enum(["piece", "feet", "meter"]).optional(),
-  lengthPerPiece: z.number().optional(),
+  sizeLabel: z.string().optional(),
+  sizeName: z.string().optional(),
+  sizeId: z.string().optional().nullable(),
+  gauge: z.string().optional(),
+  lengthFeet: z.number().min(0).optional(),
 
   purchasePrice: z.number().min(0),
   retailPrice: z.number().min(0),
   wholesalePrice: z.number().min(0).optional(),
-  plumberPrice: z.number().min(0).optional(),
+  distributorPrice: z.number().min(0).optional(),
   dealerPrice: z.number().min(0).optional(),
+  plumberPrice: z.number().min(0).optional(),
+
+  stock: z.number().min(0).optional(),
+  openingStock: z.number().min(0).optional(),
+  minimumStock: z.number().min(0).optional(),
   lowStockAlertQty: z.number().min(0).optional(),
-  allowDecimalQty: z.boolean().optional(),
+  warehouseId: z.string().optional().nullable(),
+  warehouseName: z.string().optional(),
+
+  description: z.string().optional(),
   status: z.enum(["active", "inactive"]).optional()
 });
 
 const bulkVariantSchema = z.object({
   items: z.array(
     z.object({
-      productName: z.string().min(1),
-      variantName: z.string().min(1),
-      sku: z.string().min(1),
-      barcode: z.string().optional(),
-      brandName: z.string().min(1),
       categoryName: z.string().min(1),
+      productName: z.string().min(1),
+      brandName: z.string().optional(),
+      size: z.string().optional(),
       sizeName: z.string().optional(),
       gauge: z.string().optional(),
-      unitName: z.string().min(1),
-      saleUnit: z.enum(["piece", "length", "feet", "meter", "box", "carton", "set", "bundle", "dozen"]).default("piece"),
-      baseUnit: z.enum(["piece", "feet", "meter"]).default("piece"),
-      lengthPerPiece: z.number().min(0).default(0),
+      lengthFeet: z.number().min(0).optional(),
+      sku: z.string().optional(),
       purchasePrice: z.number().min(0),
       retailPrice: z.number().min(0),
       wholesalePrice: z.number().min(0).optional(),
-      plumberPrice: z.number().min(0).optional(),
-      dealerPrice: z.number().min(0).optional(),
-      lowStockAlertQty: z.number().min(0).optional(),
-      allowDecimalQty: z.boolean().optional(),
+      distributorPrice: z.number().min(0).optional(),
+      stock: z.number().min(0).optional(),
       openingStock: z.number().min(0).optional(),
-      warehouseName: z.string().optional()
+      minimumStock: z.number().min(0).optional(),
+      warehouseName: z.string().optional(),
+      description: z.string().optional()
     })
   ).min(1)
 });
@@ -93,527 +99,408 @@ const bulkVariantSchema = z.object({
 const findOrCreateByName = async (Model: any, name: string, extra: any = {}) => {
   const cleanName = clean(name);
   let doc = await Model.findOne({ name: exactNameQuery(cleanName) });
-  if (!doc) {
-    doc = await Model.create({ name: cleanName, ...extra });
-  }
+  if (!doc) doc = await Model.create({ name: cleanName, ...extra });
   return doc;
 };
 
-const ensureNoDuplicateProduct = async ({
-  name,
-  categoryId,
-  brandId,
-  excludeId
-}: {
-  name: string;
-  categoryId: string;
-  brandId: string;
-  excludeId?: string;
-}) => {
-  const filter: any = {
-    name: exactNameQuery(name),
-    categoryId,
-    brandId
-  };
+const getDefaultUnit = async () => {
+  return findOrCreateByName(Unit, "Piece", { shortName: "pcs", allowDecimal: false });
+};
 
-  if (excludeId) filter._id = { $ne: excludeId };
+const getDefaultBrand = async () => {
+  return findOrCreateByName(Brand, "No Brand");
+};
 
-  const duplicate = await Product.findOne(filter)
-    .populate("brandId", "name")
-    .populate("categoryId", "name");
+const getMainShop = async (warehouseName?: string) => {
+  return findOrCreateByName(Warehouse, clean(warehouseName) || "Main Shop", { type: "shop" });
+};
 
-  if (duplicate) {
-    throw new ApiError(
-      400,
-      `Duplicate product restricted: "${name}" already exists in brand "${(duplicate.brandId as any)?.name || "same brand"}" and category "${(duplicate.categoryId as any)?.name || "same category"}".`
-    );
+const createSku = async (categoryName: string) => {
+  const prefix = clean(categoryName)
+    .split(/\s+/)
+    .map((word) => word[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 4) || "PRD";
+  const count = await ProductVariant.countDocuments();
+  return `${prefix}-${String(count + 1).padStart(5, "0")}`;
+};
+
+const getLengthByCategory = (categoryName: string, inputLength?: number) => {
+  const config = getCategoryConfigByName(categoryName);
+  if (config?.fixedLengthFeet !== undefined) return config.fixedLengthFeet;
+  return Number(inputLength || 0);
+};
+
+const getSaleUnitByCategory = (categoryName: string) => {
+  const config = getCategoryConfigByName(categoryName);
+  return config?.fields.includes("lengthFeet") ? "length" : "piece";
+};
+
+const validateDynamicFields = ({ categoryName, brandId, sizeLabel, gauge }: any) => {
+  const config = getCategoryConfigByName(categoryName);
+  if (!config) return;
+
+  if (config.fields.includes("brand") && config.brandRequired && !brandId) {
+    throw new ApiError(400, `${config.label}: brand is required.`);
+  }
+
+  if (config.fields.includes("size") && !clean(sizeLabel)) {
+    throw new ApiError(400, `${config.label}: size is required.`);
+  }
+
+  if (config.fields.includes("gauge") && config.gaugeRequired && !clean(gauge)) {
+    throw new ApiError(400, `${config.label}: gauge/thickness is required.`);
   }
 };
 
-const ensureNoDuplicateVariant = async ({
-  productId,
-  brandId,
-  categoryId,
-  sizeId,
-  gauge,
-  saleUnit,
-  sku,
-  barcode,
-  excludeId
-}: {
-  productId: string;
-  brandId: string;
-  categoryId: string;
-  sizeId?: string | null;
-  gauge?: string;
-  saleUnit?: string;
-  sku?: string;
-  barcode?: string;
-  excludeId?: string;
-}) => {
-  const normalizedSku = cleanUpper(sku);
-  if (normalizedSku) {
-    const skuFilter: any = { sku: normalizedSku };
-    if (excludeId) skuFilter._id = { $ne: excludeId };
-    const duplicateSku = await ProductVariant.findOne(skuFilter);
-    if (duplicateSku) {
-      throw new ApiError(400, `Duplicate SKU restricted: "${normalizedSku}" already exists.`);
-    }
+const ensureVariantDuplicateFree = async ({ duplicateKey, sku, excludeId }: { duplicateKey: string; sku: string; excludeId?: string }) => {
+  const skuFilter: any = { sku: cleanUpper(sku) };
+  if (excludeId) skuFilter._id = { $ne: excludeId };
+  const duplicateSku = await ProductVariant.findOne(skuFilter);
+  if (duplicateSku) throw new ApiError(400, `Duplicate SKU restricted: "${sku}" already exists.`);
+
+  const filter: any = { duplicateKey };
+  if (excludeId) filter._id = { $ne: excludeId };
+  const duplicate = await ProductVariant.findOne(filter).populate("categoryId", "name").populate("brandId", "name");
+  if (duplicate) {
+    throw new ApiError(400, `Duplicate product restricted: "${duplicate.name}" / ${(duplicate.categoryId as any)?.name || "same category"} / size ${duplicate.sizeLabel || "-"} / gauge ${duplicate.gauge || "-"} already exists.`);
+  }
+};
+
+const getOrCreateStock = async (warehouseId: string, productVariantId: string, qty: number) => {
+  const existing = await WarehouseStock.findOne({ warehouseId, productVariantId });
+  if (existing) {
+    existing.quantity = qty;
+    await existing.save();
+    return existing;
+  }
+  return WarehouseStock.create({ warehouseId, productVariantId, quantity: qty });
+};
+
+const prepareVariantPayload = async (raw: z.infer<typeof dynamicVariantSchema>) => {
+  const category = await Category.findById(raw.categoryId);
+  if (!category) throw new ApiError(404, "Category not found.");
+
+  const categoryName = category.name;
+  const config = getCategoryConfigByName(categoryName);
+
+  let brand: any = null;
+  const brandShouldBeUsed = config?.fields.includes("brand") || clean(raw.brandId) || clean(raw.brandName);
+  if (brandShouldBeUsed) {
+    brand = raw.brandId ? await Brand.findById(raw.brandId) : await findOrCreateByName(Brand, raw.brandName || "No Brand");
+  } else {
+    brand = await getDefaultBrand();
   }
 
-  const normalizedBarcode = clean(barcode);
-  if (normalizedBarcode) {
-    const barcodeFilter: any = { barcode: normalizedBarcode };
-    if (excludeId) barcodeFilter._id = { $ne: excludeId };
-    const duplicateBarcode = await ProductVariant.findOne(barcodeFilter);
-    if (duplicateBarcode) {
-      throw new ApiError(400, `Duplicate barcode restricted: "${normalizedBarcode}" already exists.`);
-    }
+  const sizeLabel = clean(raw.sizeLabel || raw.sizeName) || (raw.sizeId ? clean((await Size.findById(raw.sizeId))?.name) : "");
+  const gauge = config?.fields.includes("gauge") ? clean(raw.gauge) : "";
+  const lengthFeet = getLengthByCategory(categoryName, raw.lengthFeet);
+  const name = clean(raw.name || raw.productName);
+
+  validateDynamicFields({ categoryName, brandId: brand?._id, sizeLabel, gauge });
+
+  const productNameForGroup = name;
+  let product = raw.productId ? await Product.findById(raw.productId) : null;
+  if (!product) {
+    product = await Product.findOne({
+      name: exactNameQuery(productNameForGroup),
+      categoryId: category._id,
+      brandId: brand?._id || null
+    });
+  }
+  if (!product) {
+    product = await Product.create({
+      name: productNameForGroup,
+      categoryId: category._id,
+      brandId: brand?._id || null,
+      description: raw.description || "",
+      status: raw.status || "active"
+    });
   }
 
-  const variantFilter: any = {
-    productId,
-    brandId,
-    categoryId,
-    sizeId: sizeId || null,
-    gauge: clean(gauge),
-    saleUnit: saleUnit || "piece"
+  const unit = await getDefaultUnit();
+  const sku = cleanUpper(raw.sku) || await createSku(categoryName);
+  const duplicateKey = buildDuplicateKey({
+    name,
+    categoryName,
+    brandName: brand?.name || "",
+    sizeLabel,
+    gauge,
+    lengthFeet
+  });
+  const searchText = buildSearchText({
+    name,
+    categoryName,
+    brandName: brand?.name || "",
+    sizeLabel,
+    gauge,
+    sku
+  });
+  const saleUnit = getSaleUnitByCategory(categoryName);
+
+  return {
+    product,
+    category,
+    brand,
+    unit,
+    variant: {
+      productId: product._id,
+      name,
+      sku,
+      categoryId: category._id,
+      brandId: brand?._id || null,
+      sizeId: raw.sizeId || null,
+      sizeLabel,
+      gauge,
+      lengthFeet,
+      unitId: unit._id,
+      saleUnit,
+      baseUnit: saleUnit === "length" ? "feet" : "piece",
+      lengthPerPiece: lengthFeet,
+      purchasePrice: raw.purchasePrice,
+      retailPrice: raw.retailPrice,
+      wholesalePrice: raw.wholesalePrice || 0,
+      distributorPrice: raw.distributorPrice || raw.dealerPrice || 0,
+      dealerPrice: raw.distributorPrice || raw.dealerPrice || 0,
+      plumberPrice: raw.wholesalePrice || 0,
+      minimumStock: raw.minimumStock || raw.lowStockAlertQty || 5,
+      lowStockAlertQty: raw.minimumStock || raw.lowStockAlertQty || 5,
+      allowDecimalQty: false,
+      description: raw.description || "",
+      searchText,
+      duplicateKey,
+      status: raw.status || "active"
+    },
+    stock: raw.stock ?? raw.openingStock ?? 0,
+    warehouseId: raw.warehouseId,
+    warehouseName: raw.warehouseName
   };
+};
 
-  if (excludeId) variantFilter._id = { $ne: excludeId };
+productRoutes.get("/category-config", asyncHandler(async (_req, res) => {
+  const categories = await Category.find().sort({ name: 1 });
+  const existingNames = new Set(categories.map((category) => category.name.toLowerCase()));
+  for (const config of CATEGORY_CONFIGS) {
+    if (!existingNames.has(config.label.toLowerCase())) {
+      await Category.create({ name: config.label });
+    }
+  }
 
-  const duplicateVariant = await ProductVariant.findOne(variantFilter)
+  const refreshed = await Category.find().sort({ name: 1 });
+  const data = refreshed.map((category) => {
+    const config = getCategoryConfigByName(category.name);
+    return {
+      _id: category._id,
+      name: category.name,
+      config: config || {
+        key: category.name.toLowerCase().replace(/\s+/g, "-"),
+        label: category.name,
+        aliases: [category.name],
+        fields: ["brand", "size", "description", "minimumStock"],
+        sizes: []
+      }
+    };
+  });
+
+  sendResponse(res, 200, "Category dynamic configs.", data);
+}));
+
+productRoutes.get("/", asyncHandler(async (_req, res) => {
+  const products = await Product.find()
+    .populate("brandId", "name")
+    .populate("categoryId", "name")
+    .sort({ createdAt: -1 });
+  sendResponse(res, 200, "Product list.", products);
+}));
+
+productRoutes.post("/", asyncHandler(async (req, res) => {
+  const body = productSchema.parse(req.body);
+  const product = await Product.create({ ...body, brandId: body.brandId || null });
+  sendResponse(res, 201, "Product created.", product);
+}));
+
+productRoutes.put("/:id", asyncHandler(async (req, res) => {
+  const body = productSchema.partial().parse(req.body);
+  const product = await Product.findByIdAndUpdate(req.params.id, body, { new: true, runValidators: true });
+  if (!product) throw new ApiError(404, "Product not found.");
+  sendResponse(res, 200, "Product updated.", product);
+}));
+
+productRoutes.delete("/:id", asyncHandler(async (req, res) => {
+  const linked = await ProductVariant.countDocuments({ productId: req.params.id });
+  if (linked > 0) throw new ApiError(400, "Cannot delete product group with variants.");
+  const product = await Product.findByIdAndDelete(req.params.id);
+  if (!product) throw new ApiError(404, "Product not found.");
+  sendResponse(res, 200, "Product deleted.", product);
+}));
+
+productRoutes.get("/variants", asyncHandler(async (req, res) => {
+  const q = clean(req.query.q as string);
+  const categoryId = clean(req.query.categoryId as string);
+  const filter: any = {};
+  if (categoryId) filter.categoryId = categoryId;
+  if (q) {
+    const tokens = q.toLowerCase().split(/\s+/).filter(Boolean);
+    filter.$and = tokens.map((token) => ({ searchText: { $regex: escapeRegex(token), $options: "i" } }));
+  }
+
+  const variants = await ProductVariant.find(filter)
+    .populate("productId", "name")
+    .populate("brandId", "name")
+    .populate("categoryId", "name")
+    .populate("sizeId", "name")
+    .sort({ name: 1 })
+    .limit(1000);
+
+  sendResponse(res, 200, "Variant list.", variants);
+}));
+
+productRoutes.post("/variants", asyncHandler(async (req, res) => {
+  const body = dynamicVariantSchema.parse(req.body);
+  const prepared = await prepareVariantPayload(body);
+  await ensureVariantDuplicateFree({ duplicateKey: prepared.variant.duplicateKey, sku: prepared.variant.sku });
+
+  const variant = await ProductVariant.create(prepared.variant);
+
+  if (prepared.stock > 0) {
+    const warehouse = prepared.warehouseId ? await Warehouse.findById(prepared.warehouseId) : await getMainShop(prepared.warehouseName);
+    if (!warehouse) throw new ApiError(404, "Warehouse not found.");
+    await getOrCreateStock(String(warehouse._id), String(variant._id), prepared.stock);
+    await StockMovement.create({
+      warehouseId: warehouse._id,
+      productVariantId: variant._id,
+      type: "opening_stock",
+      quantity: prepared.stock,
+      previousStock: 0,
+      newStock: prepared.stock,
+      referenceType: "product_create",
+      note: "Opening stock from product form"
+    });
+  }
+
+  sendResponse(res, 201, "Product created.", variant);
+}));
+
+productRoutes.get("/variants/:id", asyncHandler(async (req, res) => {
+  const variant = await ProductVariant.findById(req.params.id)
     .populate("productId", "name")
     .populate("brandId", "name")
     .populate("categoryId", "name")
     .populate("sizeId", "name");
+  if (!variant) throw new ApiError(404, "Variant not found.");
+  sendResponse(res, 200, "Variant detail.", variant);
+}));
 
-  if (duplicateVariant) {
-    const sizeName = (duplicateVariant.sizeId as any)?.name || "no size";
-    const gaugeText = clean(gauge) || "no gauge";
-    throw new ApiError(
-      400,
-      `Duplicate variant restricted: ${(duplicateVariant.productId as any)?.name || "Product"} / ${(duplicateVariant.brandId as any)?.name || "Brand"} / size ${sizeName} / gauge ${gaugeText} already exists.`
-    );
-  }
-};
+productRoutes.put("/variants/:id", asyncHandler(async (req, res) => {
+  const body = dynamicVariantSchema.parse(req.body);
+  const existing = await ProductVariant.findById(req.params.id);
+  if (!existing) throw new ApiError(404, "Variant not found.");
 
-const handleDuplicateMongoError = (error: any) => {
-  if (error?.code === 11000) {
-    const key = Object.keys(error.keyPattern || error.keyValue || {})[0] || "record";
-    throw new ApiError(400, `Duplicate ${key} restricted. This product/variant already exists.`);
-  }
-  throw error;
-};
+  const prepared = await prepareVariantPayload(body);
+  await ensureVariantDuplicateFree({ duplicateKey: prepared.variant.duplicateKey, sku: prepared.variant.sku, excludeId: req.params.id });
 
-productRoutes.post(
-  "/variants/bulk",
-  asyncHandler(async (req: any, res) => {
-    const body = bulkVariantSchema.parse(req.body);
+  const variant = await ProductVariant.findByIdAndUpdate(req.params.id, prepared.variant, { new: true, runValidators: true });
 
-    const created: any[] = [];
-    const skipped: any[] = [];
-    const errors: any[] = [];
-
-    const seenSku = new Map<string, number>();
-    const seenBarcode = new Map<string, number>();
-    const seenCombo = new Map<string, number>();
-
-    for (let index = 0; index < body.items.length; index++) {
-      const row = body.items[index];
-      const rowNo = index + 2; // Excel/CSV row number including header
-
-      const skuKey = cleanUpper(row.sku);
-      const barcodeKey = clean(row.barcode);
-      const comboKey = [
-        clean(row.productName).toLowerCase(),
-        clean(row.brandName).toLowerCase(),
-        clean(row.categoryName).toLowerCase(),
-        clean(row.sizeName).toLowerCase(),
-        clean(row.gauge).toLowerCase(),
-        clean(row.saleUnit).toLowerCase()
-      ].join("|");
-
-      if (seenSku.has(skuKey)) {
-        errors.push({
-          row: rowNo,
-          sku: row.sku,
-          message: `Duplicate upload row: SKU "${row.sku}" is already used in row ${seenSku.get(skuKey)}.`
+  if (prepared.stock >= 0) {
+    const warehouse = prepared.warehouseId ? await Warehouse.findById(prepared.warehouseId) : await getMainShop(prepared.warehouseName);
+    if (warehouse && variant) {
+      const previous = await WarehouseStock.findOne({ warehouseId: warehouse._id, productVariantId: variant._id });
+      const previousStock = Number(previous?.quantity || 0);
+      await getOrCreateStock(String(warehouse._id), String(variant._id), prepared.stock);
+      if (previousStock !== prepared.stock) {
+        await StockMovement.create({
+          warehouseId: warehouse._id,
+          productVariantId: variant._id,
+          type: "adjustment",
+          quantity: prepared.stock - previousStock,
+          previousStock,
+          newStock: prepared.stock,
+          referenceType: "product_update",
+          note: "Stock updated from product form"
         });
+      }
+    }
+  }
+
+  sendResponse(res, 200, "Product updated.", variant);
+}));
+
+productRoutes.delete("/variants/:id", asyncHandler(async (req, res) => {
+  const stock = await WarehouseStock.findOne({ productVariantId: req.params.id, quantity: { $gt: 0 } });
+  if (stock) throw new ApiError(400, "Cannot delete product with stock. Set stock to 0 first.");
+  const variant = await ProductVariant.findByIdAndDelete(req.params.id);
+  if (!variant) throw new ApiError(404, "Variant not found.");
+  sendResponse(res, 200, "Variant deleted.", variant);
+}));
+
+productRoutes.post("/variants/bulk", asyncHandler(async (req, res) => {
+  const body = bulkVariantSchema.parse(req.body);
+  const created: any[] = [];
+  const skipped: any[] = [];
+  const errors: any[] = [];
+  const seen = new Map<string, number>();
+
+  for (let i = 0; i < body.items.length; i++) {
+    const row = body.items[i];
+    const rowNo = i + 2;
+    try {
+      const category = await findOrCreateByName(Category, row.categoryName);
+      const config = getCategoryConfigByName(category.name);
+      const lengthFeet = getLengthByCategory(category.name, row.lengthFeet);
+      const brandName = config?.fields.includes("brand") ? clean(row.brandName || "No Brand") : "";
+      const key = buildDuplicateKey({ name: row.productName, categoryName: category.name, brandName, sizeLabel: row.size || row.sizeName || "", gauge: row.gauge || "", lengthFeet });
+      if (seen.has(key)) {
+        errors.push({ row: rowNo, sku: row.sku || "", message: `Duplicate row: same product already exists in row ${seen.get(key)}.` });
         continue;
       }
-      seenSku.set(skuKey, rowNo);
+      seen.set(key, rowNo);
 
-      if (barcodeKey) {
-        if (seenBarcode.has(barcodeKey)) {
-          errors.push({
-            row: rowNo,
-            sku: row.sku,
-            message: `Duplicate upload row: barcode "${barcodeKey}" is already used in row ${seenBarcode.get(barcodeKey)}.`
-          });
-          continue;
-        }
-        seenBarcode.set(barcodeKey, rowNo);
-      }
+      const brand = brandName ? await findOrCreateByName(Brand, brandName) : await getDefaultBrand();
+      const sku = cleanUpper(row.sku) || await createSku(category.name);
 
-      if (seenCombo.has(comboKey)) {
-        errors.push({
-          row: rowNo,
-          sku: row.sku,
-          message: `Duplicate upload row: same product/brand/category/size/gauge/saleUnit already exists in row ${seenCombo.get(comboKey)}.`
-        });
-        continue;
-      }
-      seenCombo.set(comboKey, rowNo);
+      const payload = {
+        name: row.productName,
+        sku,
+        categoryId: String(category._id),
+        brandId: brandName ? String(brand._id) : undefined,
+        sizeLabel: row.size || row.sizeName || "",
+        gauge: row.gauge || "",
+        lengthFeet,
+        purchasePrice: row.purchasePrice,
+        retailPrice: row.retailPrice,
+        wholesalePrice: row.wholesalePrice || 0,
+        distributorPrice: row.distributorPrice || 0,
+        stock: row.stock ?? row.openingStock ?? 0,
+        minimumStock: row.minimumStock || 5,
+        warehouseName: row.warehouseName || "Main Shop",
+        description: row.description || ""
+      };
 
-      try {
-        const brand = await findOrCreateByName(Brand, row.brandName);
-        const category = await findOrCreateByName(Category, row.categoryName);
+      const prepared = await prepareVariantPayload(payload);
+      await ensureVariantDuplicateFree({ duplicateKey: prepared.variant.duplicateKey, sku: prepared.variant.sku });
+      const variant = await ProductVariant.create(prepared.variant);
 
-        let unit = await Unit.findOne({
-          $or: [
-            { name: exactNameQuery(row.unitName) },
-            { shortName: exactNameQuery(row.unitName) }
-          ]
-        });
-
-        if (!unit) {
-          unit = await Unit.create({
-            name: clean(row.unitName),
-            shortName: clean(row.unitName).toLowerCase(),
-            allowDecimal: Boolean(row.allowDecimalQty)
-          });
-        }
-
-        let size: any = null;
-        if (clean(row.sizeName)) {
-          size = await findOrCreateByName(Size, clean(row.sizeName));
-        }
-
-        let product = await Product.findOne({
-          name: exactNameQuery(row.productName),
-          brandId: brand._id,
-          categoryId: category._id
-        });
-
-        if (!product) {
-          product = await Product.create({
-            name: clean(row.productName),
-            brandId: brand._id,
-            categoryId: category._id,
-            status: "active"
-          });
-        }
-
-        await ensureNoDuplicateVariant({
-          productId: String(product._id),
-          brandId: String(brand._id),
-          categoryId: String(category._id),
-          sizeId: size?._id ? String(size._id) : null,
-          gauge: row.gauge,
-          saleUnit: row.saleUnit,
-          sku: row.sku,
-          barcode: row.barcode
-        });
-
-        const variant = await ProductVariant.create({
-          productId: product._id,
-          name: clean(row.variantName),
-          sku: skuKey,
-          barcode: barcodeKey || undefined,
-          brandId: brand._id,
-          categoryId: category._id,
-          sizeId: size?._id || null,
-          gauge: clean(row.gauge),
-          unitId: unit._id,
-          saleUnit: row.saleUnit,
-          baseUnit: row.baseUnit,
-          lengthPerPiece: row.lengthPerPiece || 0,
-          purchasePrice: row.purchasePrice,
-          retailPrice: row.retailPrice,
-          wholesalePrice: row.wholesalePrice || 0,
-          plumberPrice: row.plumberPrice || 0,
-          dealerPrice: row.dealerPrice || 0,
-          lowStockAlertQty: row.lowStockAlertQty || 5,
-          allowDecimalQty: Boolean(row.allowDecimalQty),
-          status: "active"
-        });
-
-        if (row.openingStock && row.openingStock > 0) {
-          const warehouseName = clean(row.warehouseName) || "Main Shop";
-          const warehouse = await findOrCreateByName(Warehouse, warehouseName, { type: "shop" });
-
-          await WarehouseStock.findOneAndUpdate(
-            { warehouseId: warehouse._id, productVariantId: variant._id },
-            { $set: { quantity: row.openingStock } },
-            { upsert: true, new: true }
-          );
-
-          await StockMovement.create({
-            warehouseId: warehouse._id,
-            productVariantId: variant._id,
-            type: "opening_stock",
-            quantity: row.openingStock,
-            previousStock: 0,
-            newStock: row.openingStock,
-            referenceType: "bulk_import",
-            note: "Opening stock from bulk product import"
-          });
-        }
-
-        created.push({ row: rowNo, sku: variant.sku, name: variant.name });
-      } catch (error: any) {
-        errors.push({
-          row: rowNo,
-          sku: row.sku,
-          message: error.message || "Import failed"
+      if (prepared.stock > 0) {
+        const warehouse = await getMainShop(prepared.warehouseName);
+        await getOrCreateStock(String(warehouse._id), String(variant._id), prepared.stock);
+        await StockMovement.create({
+          warehouseId: warehouse._id,
+          productVariantId: variant._id,
+          type: "opening_stock",
+          quantity: prepared.stock,
+          previousStock: 0,
+          newStock: prepared.stock,
+          referenceType: "bulk_import",
+          note: "Opening stock from bulk product import"
         });
       }
-    }
 
-    sendResponse(res, 201, "Bulk product import completed.", {
-      created,
-      skipped,
-      errors,
-      totalRows: body.items.length
-    });
-  })
-);
-
-productRoutes.get(
-  "/",
-  asyncHandler(async (req, res) => {
-    const q = String(req.query.q || "").trim();
-
-    const filter = q ? { name: { $regex: q, $options: "i" } } : {};
-
-    const products = await Product.find(filter)
-      .populate("categoryId", "name")
-      .populate("brandId", "name")
-      .sort({ createdAt: -1 });
-
-    sendResponse(res, 200, "Product list.", products);
-  })
-);
-
-productRoutes.post(
-  "/",
-  asyncHandler(async (req, res) => {
-    const body = productSchema.parse(req.body);
-
-    await ensureNoDuplicateProduct({
-      name: body.name,
-      categoryId: body.categoryId,
-      brandId: body.brandId
-    });
-
-    try {
-      const product = await Product.create({
-        ...body,
-        name: clean(body.name)
-      });
-      sendResponse(res, 201, "Product created.", product);
+      created.push({ row: rowNo, sku: variant.sku, name: variant.name });
     } catch (error: any) {
-      handleDuplicateMongoError(error);
+      errors.push({ row: rowNo, sku: row.sku || "", message: error.message || "Import failed" });
     }
-  })
-);
+  }
 
-productRoutes.get(
-  "/variants",
-  asyncHandler(async (req, res) => {
-    const q = String(req.query.q || "").trim();
-
-    const filter = q
-      ? {
-          $or: [
-            { name: { $regex: q, $options: "i" } },
-            { sku: { $regex: q, $options: "i" } },
-            { barcode: { $regex: q, $options: "i" } },
-            { gauge: { $regex: q, $options: "i" } }
-          ]
-        }
-      : {};
-
-    const variants = await ProductVariant.find(filter)
-      .populate("productId", "name")
-      .populate("brandId", "name")
-      .populate("categoryId", "name")
-      .populate("sizeId", "name")
-      .populate("unitId", "name shortName")
-      .sort({ createdAt: -1 })
-      .limit(300);
-
-    sendResponse(res, 200, "Product variant list.", variants);
-  })
-);
-
-productRoutes.post(
-  "/variants",
-  asyncHandler(async (req, res) => {
-    const body = variantSchema.parse(req.body);
-
-    await ensureNoDuplicateVariant({
-      productId: body.productId,
-      brandId: body.brandId,
-      categoryId: body.categoryId,
-      sizeId: body.sizeId || null,
-      gauge: body.gauge,
-      saleUnit: body.saleUnit || "piece",
-      sku: body.sku,
-      barcode: body.barcode
-    });
-
-    try {
-      const variant = await ProductVariant.create({
-        ...body,
-        name: clean(body.name),
-        sku: cleanUpper(body.sku),
-        barcode: clean(body.barcode) || undefined,
-        sizeId: body.sizeId || null,
-        gauge: clean(body.gauge)
-      });
-
-      sendResponse(res, 201, "Product variant created.", variant);
-    } catch (error: any) {
-      handleDuplicateMongoError(error);
-    }
-  })
-);
-
-productRoutes.get(
-  "/variants/:id",
-  asyncHandler(async (req, res) => {
-    const variant = await ProductVariant.findById(req.params.id)
-      .populate("productId", "name")
-      .populate("brandId", "name")
-      .populate("categoryId", "name")
-      .populate("sizeId", "name")
-      .populate("unitId", "name shortName");
-
-    if (!variant) throw new ApiError(404, "Product variant not found.");
-    sendResponse(res, 200, "Product variant detail.", variant);
-  })
-);
-
-productRoutes.put(
-  "/variants/:id",
-  asyncHandler(async (req, res) => {
-    const body = variantSchema.partial().parse(req.body);
-
-    const existing = await ProductVariant.findById(req.params.id);
-    if (!existing) throw new ApiError(404, "Product variant not found.");
-
-    await ensureNoDuplicateVariant({
-      productId: body.productId || String(existing.productId),
-      brandId: body.brandId || String(existing.brandId),
-      categoryId: body.categoryId || String(existing.categoryId),
-      sizeId: body.sizeId === undefined ? (existing.sizeId ? String(existing.sizeId) : null) : (body.sizeId || null),
-      gauge: body.gauge === undefined ? existing.gauge : body.gauge,
-      saleUnit: body.saleUnit || existing.saleUnit,
-      sku: body.sku || existing.sku,
-      barcode: body.barcode === undefined ? existing.barcode : body.barcode,
-      excludeId: req.params.id
-    });
-
-    const update = {
-      ...body,
-      ...(body.name ? { name: clean(body.name) } : {}),
-      ...(body.sku ? { sku: cleanUpper(body.sku) } : {}),
-      ...(body.barcode === "" ? { barcode: undefined } : body.barcode ? { barcode: clean(body.barcode) } : {}),
-      ...(body.sizeId === "" ? { sizeId: null } : {}),
-      ...(body.gauge !== undefined ? { gauge: clean(body.gauge) } : {})
-    };
-
-    try {
-      const variant = await ProductVariant.findByIdAndUpdate(req.params.id, update, {
-        new: true,
-        runValidators: true
-      });
-
-      if (!variant) throw new ApiError(404, "Product variant not found.");
-      sendResponse(res, 200, "Product variant updated.", variant);
-    } catch (error: any) {
-      handleDuplicateMongoError(error);
-    }
-  })
-);
-
-productRoutes.delete(
-  "/variants/:id",
-  asyncHandler(async (req, res) => {
-    const stockDocs = await WarehouseStock.find({ productVariantId: req.params.id });
-    const hasStock = stockDocs.some((stock) => stock.quantity > 0);
-
-    if (hasStock) {
-      throw new ApiError(400, "Cannot delete variant because it has stock. Set stock to 0 first.");
-    }
-
-    await WarehouseStock.deleteMany({ productVariantId: req.params.id });
-    const variant = await ProductVariant.findByIdAndDelete(req.params.id);
-
-    if (!variant) throw new ApiError(404, "Product variant not found.");
-    sendResponse(res, 200, "Product variant deleted.", variant);
-  })
-);
-
-productRoutes.get(
-  "/:id",
-  asyncHandler(async (req, res) => {
-    const product = await Product.findById(req.params.id)
-      .populate("categoryId", "name")
-      .populate("brandId", "name");
-
-    if (!product) throw new ApiError(404, "Product not found.");
-    sendResponse(res, 200, "Product detail.", product);
-  })
-);
-
-productRoutes.put(
-  "/:id",
-  asyncHandler(async (req, res) => {
-    const body = productSchema.partial().parse(req.body);
-
-    const existing = await Product.findById(req.params.id);
-    if (!existing) throw new ApiError(404, "Product not found.");
-
-    await ensureNoDuplicateProduct({
-      name: body.name || existing.name,
-      categoryId: body.categoryId || String(existing.categoryId),
-      brandId: body.brandId || String(existing.brandId),
-      excludeId: req.params.id
-    });
-
-    try {
-      const product = await Product.findByIdAndUpdate(
-        req.params.id,
-        { ...body, ...(body.name ? { name: clean(body.name) } : {}) },
-        {
-          new: true,
-          runValidators: true
-        }
-      );
-
-      if (!product) throw new ApiError(404, "Product not found.");
-      sendResponse(res, 200, "Product updated.", product);
-    } catch (error: any) {
-      handleDuplicateMongoError(error);
-    }
-  })
-);
-
-productRoutes.delete(
-  "/:id",
-  asyncHandler(async (req, res) => {
-    const variantCount = await ProductVariant.countDocuments({ productId: req.params.id });
-
-    if (variantCount > 0) {
-      throw new ApiError(400, "Cannot delete product because it has variants. Delete variants first.");
-    }
-
-    const product = await Product.findByIdAndDelete(req.params.id);
-    if (!product) throw new ApiError(404, "Product not found.");
-
-    sendResponse(res, 200, "Product deleted.", product);
-  })
-);
+  sendResponse(res, 201, "Bulk product import completed.", { created, skipped, errors, totalRows: body.items.length });
+}));

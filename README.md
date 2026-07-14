@@ -359,58 +359,24 @@ backend/src/modules/products/product.routes.ts
 backend/src/modules/dashboard/dashboard.routes.ts
 ```
 
+## Update v14
 
-## Update v11
-
-Duplicate restrictions, gauge/thickness, and Excel upload added:
-
-```txt
-Manual duplicate product restricted
-Manual duplicate variant restricted
-Bulk import duplicate row validation
-Bulk import DB duplicate validation
-Optional gauge/thickness field
-Excel .xlsx upload support on Bulk Import page
-Product import template link
-```
-
-Duplicate rule:
+Hardware/sanitary product and fast POS redesign:
 
 ```txt
-Product duplicate = same productName + brand + category
-Variant duplicate = same product + brand + category + size + gauge + saleUnit
-SKU and barcode are always unique
-```
-
-
-## Update v12
-
-UI refresh and sidebar grouping:
-
-```txt
-Dropdown sidebar module groups
-Mobile sidebar drawer
-Cleaner topbar
-Modern cards/tables/forms styling
-Products page tabbed: product form/list and variant form/list
-Bulk Import shortcut in sidebar and products page
-Better responsive layout
-```
-
-## Update v13
-
-Kanakku-inspired UI refresh:
-
-```txt
-White sidebar with slim left rail
-Dropdown menu groups similar to Kanakku layout
-Topbar with breadcrumb, search and actions
-Products page redesigned as clean listing/table
-Export CSV button on products
-New Product side drawer
-Product/variant forms moved into drawer
-Product search is automatic while typing
-Auto-search helper added for old pages that still have Search/Apply buttons
-Success/error messages styled as toast notifications
-Cleaner tables, filters, status toggles and action buttons
+Dynamic product category configuration
+Category-based product form fields
+GI/UPVC/CPVC/PPR fitting and pipe rules
+Brand hidden for GI categories
+Gauge shown only for pipe categories that need it
+Fixed pipe length support: 20ft and 10ft
+Units and barcode removed from UI
+Distributor price added
+Product duplicate validation by category + product + brand + size + gauge + length
+Fast token-based POS search across name/category aliases/size/brand/gauge
+POS layout: categories left, products center, cart right
+Live search without search button
+Keyboard shortcuts: arrow up/down, enter add, escape clear
+Search refocuses after adding product
+Updated bulk import columns for hardware/sanitary sheet
 ```

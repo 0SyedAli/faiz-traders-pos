@@ -126,10 +126,11 @@ export function DashboardLayout({ title, children }: { title: string; children: 
   return (
     <div className="kanakku-shell">
       {/* <aside className="side-rail">
-        <Link className="rail-plus" href="/pos">+</Link>
+        <Link className="rail-plus" href="/pos"></Link>
         <span className="rail-dot" />
         <span className="rail-dot" />
         <button className="rail-logout" onClick={logout}>↪</button>
+
       </aside> */}
 
       <aside className={mobileOpen ? "k-sidebar mobile-visible" : "k-sidebar"}>
@@ -153,6 +154,7 @@ export function DashboardLayout({ title, children }: { title: string; children: 
               </div>
             );
           })}
+          <button className="rail-logout" onClick={logout}>↪</button>
         </nav>
       </aside>
 
@@ -162,14 +164,14 @@ export function DashboardLayout({ title, children }: { title: string; children: 
         <header className="k-topbar">
           <div className="k-breadcrumb">
             <button className="mobile-menu-btn" onClick={() => setMobileOpen(true)}>☰</button>
-            <Link href="/dashboard" style={{ display: "flex", alignItems: "center", gap: "4px" }}><FaHome /> Home</Link><span>›</span><strong>{pageLabel(pathname)}</strong>
+            <Link href="/dashboard"><FaHome /> Home</Link><span>›</span><strong>{pageLabel(pathname)}</strong>
           </div>
           <div className="k-top-actions">
-            {/* <div className="k-global-search"><input type="search" placeholder="Search" /><span>⌕</span></div> */}
+            <div className="k-global-search"><input type="search" placeholder="Search" /><span>⌕</span></div>
             <Link className="k-new-btn" href="/pos">+ New Sale</Link>
-            {/* <button className="k-icon-btn">●</button>
+            <button className="k-icon-btn">●</button>
             <button className="k-icon-btn">☾</button>
-            <button className="k-avatar" onClick={logout}>A</button> */}
+            <button className="k-avatar" onClick={logout}>A</button>
           </div>
         </header>
         <section className="k-content">{children}</section>

@@ -42,16 +42,21 @@ const seed = async () => {
   ]);
 
   await upsertByName(Category, [
-    { name: "Pipes" },
-    { name: "Pipe Fittings" },
-    { name: "Taps" },
-    { name: "Mixers" },
+    { name: "GI Fitting" },
+    { name: "UPVC Fitting" },
+    { name: "CPVC Fitting" },
+    { name: "PPR Fitting" },
+    { name: "GI Pipe" },
+    { name: "UPVC Pipe" },
+    { name: "CPVC Pipe" },
+    { name: "PPR Pipe" },
+    { name: "Muslim Shower" },
+    { name: "Basin Tap" },
+    { name: "Basin Mixer" },
+    { name: "Wall Shower Set" },
+    { name: "Commode" },
     { name: "Valves" },
-    { name: "Bathroom Accessories" },
-    { name: "Sanitary Ware" },
-    { name: "Hygiene Accessories" },
-    { name: "Tools" },
-    { name: "Other Items" }
+    { name: "Accessories" }
   ]);
 
   await upsertByName(Unit, [
@@ -70,13 +75,21 @@ const seed = async () => {
     { name: "1/2", sortOrder: 1 },
     { name: "3/4", sortOrder: 2 },
     { name: "1", sortOrder: 3 },
-    { name: "1.25", sortOrder: 4 },
-    { name: "1.5", sortOrder: 5 },
+    { name: "1-1/4", sortOrder: 4 },
+    { name: "1-1/2", sortOrder: 5 },
     { name: "2", sortOrder: 6 },
     { name: "3", sortOrder: 7 },
     { name: "4", sortOrder: 8 },
     { name: "5", sortOrder: 9 },
-    { name: "6", sortOrder: 10 }
+    { name: "6", sortOrder: 10 },
+    { name: "20mm", sortOrder: 11 },
+    { name: "25mm", sortOrder: 12 },
+    { name: "32mm", sortOrder: 13 },
+    { name: "40mm", sortOrder: 14 },
+    { name: "50mm", sortOrder: 15 },
+    { name: "63mm", sortOrder: 16 },
+    { name: "75mm", sortOrder: 17 },
+    { name: "90mm", sortOrder: 18 }
   ]);
 
   await upsertByName(Warehouse, [

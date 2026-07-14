@@ -5,11 +5,11 @@ import * as XLSX from "xlsx";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { api } from "@/lib/api";
 
-const template = `productName,variantName,sku,barcode,brandName,categoryName,sizeName,gauge,unitName,saleUnit,baseUnit,lengthPerPiece,purchasePrice,retailPrice,wholesalePrice,plumberPrice,dealerPrice,lowStockAlertQty,allowDecimalQty,openingStock,warehouseName
-PVC Pipe,PVC Pipe Steelex 3 inch Gauge 41 20ft,STX-PIPE-3-G41,,Steelex,Pipes,3,41,Length,length,feet,20,1200,1450,1400,1375,1350,5,false,10,Main Shop
-PVC Pipe,PVC Pipe Steelex 3 inch Gauge 64 20ft,STX-PIPE-3-G64,,Steelex,Pipes,3,64,Length,length,feet,20,1450,1750,1700,1650,1625,5,false,10,Main Shop
-PVC Pipe,PVC Pipe Steelex 4 inch Gauge 41 20ft,STX-PIPE-4-G41,,Steelex,Pipes,4,41,Length,length,feet,20,1800,2150,2100,2050,2000,5,false,8,Main Shop
-Elbow,Elbow Steelex 3 inch Gauge 41,STX-ELBOW-3-G41,,Steelex,Pipe Fittings,3,41,Piece,piece,piece,0,150,220,210,200,195,20,false,50,Main Shop`;
+const template = `categoryName,productName,brandName,size,gauge,lengthFeet,purchasePrice,retailPrice,wholesalePrice,distributorPrice,stock,minimumStock,warehouseName,description
+GI Fitting,Elbow,,1,,0,120,160,150,145,100,20,Main Shop,Iron elbow 1 inch
+UPVC Pipe,UPVC Pipe,Master,2,SCH40,20,900,1200,1150,1100,50,5,Main Shop,Master UPVC pipe
+PPR Fitting,Elbow,Popular,25mm,,0,80,120,110,105,200,25,Main Shop,PPR elbow 25mm
+Muslim Shower,Muslim Shower,Sonex,,,0,350,500,475,450,30,5,Main Shop,Muslim shower`;
 
 type ImportResult = {
   created: { row: number; sku: string; name: string }[];
@@ -48,12 +48,8 @@ const parseCsvLine = (line: string) => {
 };
 
 const requiredHeaders = [
-  "productName",
-  "variantName",
-  "sku",
-  "brandName",
   "categoryName",
-  "unitName",
+  "productName",
   "purchasePrice",
   "retailPrice"
 ];
@@ -162,47 +158,37 @@ export default function BulkProductsPage() {
 
         const rowNo = rowIndex + 2;
         const skuKey = String(row.sku || "").trim().toUpperCase();
-        const comboKey = [
-          row.productName,
-          row.brandName,
-          row.categoryName,
-          row.sizeName,
-          row.gauge,
-          row.saleUnit
-        ].map((x) => String(x || "").trim().toLowerCase()).join("|");
+        const comboKey = [row.productName, row.brandName, row.categoryName, row.size || row.sizeName, row.gauge, row.lengthFeet]
+          .map((x) => String(x || "").trim().toLowerCase()).join("|");
 
-        if (duplicateSku.has(skuKey)) {
-          throw new Error(`Duplicate upload row: SKU "${row.sku}" row ${rowNo} me duplicate hai. Pehle row ${duplicateSku.get(skuKey)} me aa chuka hai.`);
+        if (skuKey) {
+          if (duplicateSku.has(skuKey)) {
+            throw new Error(`Duplicate upload row: SKU "${row.sku}" row ${rowNo} me duplicate hai. Pehle row ${duplicateSku.get(skuKey)} me aa chuka hai.`);
+          }
+          duplicateSku.set(skuKey, rowNo);
         }
-        duplicateSku.set(skuKey, rowNo);
 
         if (duplicateCombo.has(comboKey)) {
-          throw new Error(`Duplicate upload row: same product/brand/category/size/gauge/saleUnit row ${rowNo} me duplicate hai. Pehle row ${duplicateCombo.get(comboKey)} me aa chuka hai.`);
+          throw new Error(`Duplicate upload row: same product/category/brand/size/gauge row ${rowNo} me duplicate hai. Pehle row ${duplicateCombo.get(comboKey)} me aa chuka hai.`);
         }
         duplicateCombo.set(comboKey, rowNo);
 
         return {
-          productName: row.productName,
-          variantName: row.variantName,
-          sku: row.sku,
-          barcode: row.barcode,
-          brandName: row.brandName,
           categoryName: row.categoryName,
-          sizeName: row.sizeName,
+          productName: row.productName,
+          brandName: row.brandName,
+          size: row.size || row.sizeName,
           gauge: row.gauge,
-          unitName: row.unitName,
-          saleUnit: row.saleUnit || "piece",
-          baseUnit: row.baseUnit || "piece",
-          lengthPerPiece: parseNum(row.lengthPerPiece),
+          lengthFeet: parseNum(row.lengthFeet),
+          sku: row.sku,
           purchasePrice: parseNum(row.purchasePrice),
           retailPrice: parseNum(row.retailPrice),
           wholesalePrice: parseNum(row.wholesalePrice),
-          plumberPrice: parseNum(row.plumberPrice),
-          dealerPrice: parseNum(row.dealerPrice),
-          lowStockAlertQty: parseNum(row.lowStockAlertQty || "5"),
-          allowDecimalQty: parseBool(row.allowDecimalQty),
-          openingStock: parseNum(row.openingStock),
-          warehouseName: row.warehouseName || "Main Shop"
+          distributorPrice: parseNum(row.distributorPrice),
+          stock: parseNum(row.stock || row.openingStock),
+          minimumStock: parseNum(row.minimumStock || row.lowStockAlertQty || "5"),
+          warehouseName: row.warehouseName || "Main Shop",
+          description: row.description || ""
         };
       });
 
@@ -255,7 +241,7 @@ export default function BulkProductsPage() {
           />
           <p>
             Client se Excel sheet lo, yahan upload karo, preview check karo, phir import.
-            Duplicate SKU ya same Product + Brand + Category + Size + Gauge ko system reject karega.
+            Duplicate same Product + Category + Brand + Size + Gauge ko system reject karega. SKU optional hai.
           </p>
         </div>
 
@@ -268,9 +254,9 @@ export default function BulkProductsPage() {
           />
 
           <div className="bulk-help">
-            <strong>Required columns:</strong> productName, variantName, sku, brandName, categoryName, unitName, purchasePrice, retailPrice
+            <strong>Required columns:</strong> categoryName, productName, purchasePrice, retailPrice
             <br />
-            <strong>Gauge example:</strong> 3 inch pipe ke liye sizeName = 3 aur gauge = 41 / 64.
+            <strong>Gauge example:</strong> UPVC Pipe ke liye size = 2 aur gauge = SCH40. GI Fitting me brand/gauge/length blank rakho.
           </div>
 
           <button className="btn" disabled={saving || rows.length === 0}>

@@ -10,13 +10,13 @@ const instrument_sans = Instrument_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "My Store POS ERP",
+  title: "Faiz Traders",
   description: "Admin-only POS + mini ERP for sanitary business"
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${instrument_sans.variable}`}>
+    <html lang="en" className={instrument_sans.variable}>
       <body>{children}</body>
     </html>
   );
