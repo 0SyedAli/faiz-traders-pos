@@ -1,7 +1,5 @@
-import bcrypt from "bcryptjs";
 import { connectDB } from "./config/db";
 import { env } from "./config/env";
-import { AdminUser } from "./models/AdminUser";
 import { Brand } from "./models/Brand";
 import { Category } from "./models/Category";
 import { Unit } from "./models/Unit";
@@ -11,6 +9,7 @@ import { Customer } from "./models/Customer";
 import { ExpenseCategory } from "./models/ExpenseCategory";
 import { Settings } from "./models/Settings";
 import mongoose from "mongoose";
+import { resetDefaultAdmin } from "./services/adminBootstrap";
 
 const upsertByName = async (Model: any, docs: any[]) => {
   for (const doc of docs) {
@@ -21,18 +20,9 @@ const upsertByName = async (Model: any, docs: any[]) => {
 const seed = async () => {
   await connectDB();
 
-  const adminExists = await AdminUser.findOne({ email: env.ADMIN_EMAIL });
-
-  if (!adminExists) {
-    await AdminUser.create({
-      name: env.ADMIN_NAME,
-      email: env.ADMIN_EMAIL,
-      phone: env.ADMIN_PHONE,
-      password: await bcrypt.hash(env.ADMIN_PASSWORD, 10),
-      role: "admin"
-    });
-    console.log("Admin user created.");
-  }
+  const adminResult = await resetDefaultAdmin();
+  console.log(adminResult.created ? "Admin user created." : "Admin credentials refreshed.");
+  console.log(`Admin email: ${adminResult.email}`);
 
   await upsertByName(Brand, [
     { name: "Steelex" },

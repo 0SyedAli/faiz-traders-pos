@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { AppProviders } from "@/components/AppProviders";
 import "./globals.css";
 import { Instrument_Sans } from "next/font/google";
 
@@ -10,14 +11,16 @@ const instrument_sans = Instrument_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Faiz Traders",
-  description: "Admin-only POS + mini ERP for sanitary business"
+  title: "My Store POS ERP",
+  description: "Offline-first sanitary POS + mini ERP",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={instrument_sans.variable}>
-      <body>{children}</body>
+    <html lang="en" className={`${instrument_sans.variable} font-sans`}>
+      <body>
+        <AppProviders>{children}</AppProviders>
+      </body>
     </html>
   );
 }

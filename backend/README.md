@@ -1,4 +1,4 @@
-# Faiz Traders Backend
+# My Store POS ERP Backend
 
 Admin-only backend for sanitary POS + mini ERP.
 

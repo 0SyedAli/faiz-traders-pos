@@ -380,3 +380,16 @@ Keyboard shortcuts: arrow up/down, enter add, escape clear
 Search refocuses after adding product
 Updated bulk import columns for hardware/sanitary sheet
 ```
+
+## Login repair
+Stop the backend, then run:
+```bash
+cd backend
+npm run reset-admin
+npm run dev
+```
+Default development login:
+```txt
+Email: admin@mystore.com
+Password: admin123456
+```

@@ -83,7 +83,7 @@ salesReturnRoutes.get(
 
     if (!sale) throw new ApiError(404, "Sale not found.");
 
-    const returnedMap = await getAlreadyReturnedMap(req.params.saleId);
+    const returnedMap = await getAlreadyReturnedMap(String(req.params.saleId));
 
     const returnableItems = (sale.items as any[]).map((item) => {
       const alreadyReturned = returnedMap.get(String(item.productVariantId)) || 0;

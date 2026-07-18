@@ -13,6 +13,7 @@ import { asyncHandler } from "../../utils/asyncHandler";
 import { sendResponse } from "../../utils/sendResponse";
 import { ApiError } from "../../utils/apiError";
 import { getCategorySearchAliases } from "../../utils/categoryConfig";
+import { InvoiceSequence } from "../../models/InvoiceSequence";
 
 export const saleRoutes = Router();
 saleRoutes.use(requireAdmin);
@@ -25,6 +26,8 @@ const saleItemSchema = z.object({
 });
 
 const saleSchema = z.object({
+  clientUuid: z.string().uuid().optional(),
+  clientInvoiceNo: z.string().regex(/^INV-[A-Z0-9]{4}-\d{8}-\d{4}$/).optional(),
   customerId: z.string().optional(),
   warehouseId: z.string(),
   items: z.array(saleItemSchema).min(1),
@@ -38,7 +41,17 @@ const saleSchema = z.object({
 const escapeRegex = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 const getInvoicePrefix = async () => (await Settings.findOne())?.invoicePrefix || "INV";
-const getNextInvoiceNo = async () => `${await getInvoicePrefix()}-${String((await Sale.countDocuments()) + 1).padStart(6, "0")}`;
+const getNextInvoiceNo = async () => {
+  const now = new Date();
+  const date = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
+  const prefix = await getInvoicePrefix();
+  const sequence = await InvoiceSequence.findOneAndUpdate(
+    { key: `${prefix}-${date}` },
+    { $inc: { value: 1 } },
+    { upsert: true, new: true, setDefaultsOnInsert: true },
+  );
+  return `${prefix}-${date}-${String(sequence.value).padStart(4, "0")}`;
+};
 
 const getWalkInCustomer = async () => {
   let customer = await Customer.findOne({ customerType: "walkin" });
@@ -131,6 +144,14 @@ saleRoutes.get("/", asyncHandler(async (req, res) => {
 
 saleRoutes.post("/", asyncHandler(async (req: AuthRequest, res) => {
   const body = saleSchema.parse(req.body);
+
+  if (body.clientUuid) {
+    const existingSale = await Sale.findOne({ clientUuid: body.clientUuid });
+    if (existingSale) {
+      return sendResponse(res, 200, "Sale already synchronized.", { sale: existingSale, totalProfit: 0 });
+    }
+  }
+
   const customer = body.customerId ? await Customer.findById(body.customerId) : await getWalkInCustomer();
   if (!customer) throw new ApiError(404, "Customer not found.");
 
@@ -142,7 +163,10 @@ saleRoutes.post("/", asyncHandler(async (req: AuthRequest, res) => {
     if (available < item.quantity) throw new ApiError(400, `Not enough stock for ${variant.name}. Available: ${available}`);
   }
 
-  const invoiceNo = await getNextInvoiceNo();
+  let invoiceNo = body.clientInvoiceNo || await getNextInvoiceNo();
+  if (body.clientInvoiceNo && await Sale.exists({ invoiceNo: body.clientInvoiceNo })) {
+    invoiceNo = await getNextInvoiceNo();
+  }
   const saleItems: any[] = [];
   let subtotal = 0;
   let totalProfit = 0;
@@ -184,6 +208,8 @@ saleRoutes.post("/", asyncHandler(async (req: AuthRequest, res) => {
 
   const sale = await Sale.create({
     invoiceNo,
+    clientUuid: body.clientUuid,
+    syncSource: body.clientUuid ? "offline" : "server",
     customerId: customer._id,
     customerTypeSnapshot: customer.customerType,
     warehouseId: body.warehouseId,

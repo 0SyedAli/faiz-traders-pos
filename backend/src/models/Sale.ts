@@ -26,6 +26,8 @@ const saleItemSchema = new Schema(
 const saleSchema = new Schema(
   {
     invoiceNo: { type: String, required: true, unique: true },
+    clientUuid: { type: String, unique: true, sparse: true, trim: true },
+    syncSource: { type: String, default: "server", enum: ["server", "offline"] },
     customerId: { type: Schema.Types.ObjectId, ref: "Customer", required: true },
     customerTypeSnapshot: { type: String, default: "walkin" },
 

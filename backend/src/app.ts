@@ -16,6 +16,7 @@ import { settingsRoutes } from "./modules/settings/settings.routes";
 import { reportRoutes } from "./modules/reports/report.routes";
 import { saleRoutes } from "./modules/sales/sale.routes";
 import { salesReturnRoutes } from "./modules/salesReturns/salesReturn.routes";
+import { offlineRoutes } from "./modules/offline/offline.routes";
 import { errorHandler, notFound } from "./middlewares/error.middleware";
 
 export const app = express();
@@ -27,7 +28,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(morgan("dev"));
 
 app.get("/health", (_req, res) => {
-  res.json({ success: true, message: "Faiz Traders API is running." });
+  res.json({ success: true, message: "My Store POS ERP API is running." });
 });
 
 app.use("/api/auth", authRoutes);
@@ -43,6 +44,7 @@ app.use("/api/settings", settingsRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/sales", saleRoutes);
 app.use("/api/sales-returns", salesReturnRoutes);
+app.use("/api/offline", offlineRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

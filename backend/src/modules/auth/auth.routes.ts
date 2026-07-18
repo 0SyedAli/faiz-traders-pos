@@ -66,8 +66,9 @@ authRoutes.post(
   "/login",
   asyncHandler(async (req, res) => {
     const body = loginSchema.parse(req.body);
+    const normalizedEmail = body.email.trim().toLowerCase();
 
-    const admin = await AdminUser.findOne({ email: body.email }).select("+password");
+    const admin = await AdminUser.findOne({ email: normalizedEmail }).select("+password");
     if (!admin) throw new ApiError(401, "Invalid email or password.");
 
     const isMatch = await bcrypt.compare(body.password, admin.password);

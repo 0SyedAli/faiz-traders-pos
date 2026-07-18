@@ -398,7 +398,7 @@ productRoutes.put("/variants/:id", asyncHandler(async (req, res) => {
   if (!existing) throw new ApiError(404, "Variant not found.");
 
   const prepared = await prepareVariantPayload(body);
-  await ensureVariantDuplicateFree({ duplicateKey: prepared.variant.duplicateKey, sku: prepared.variant.sku, excludeId: req.params.id });
+  await ensureVariantDuplicateFree({ duplicateKey: prepared.variant.duplicateKey, sku: prepared.variant.sku, excludeId: String(req.params.id) });
 
   const variant = await ProductVariant.findByIdAndUpdate(req.params.id, prepared.variant, { new: true, runValidators: true });
 

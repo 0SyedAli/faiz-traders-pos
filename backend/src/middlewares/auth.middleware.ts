@@ -17,8 +17,22 @@ export const requireAdmin = asyncHandler(
       throw new ApiError(401, "Unauthorized. Token missing.");
     }
 
-    const token = authHeader.split(" ")[1];
-    const decoded = jwt.verify(token, env.JWT_SECRET) as { id: string };
+    const token = authHeader.slice("Bearer ".length).trim();
+    if (!token) {
+      throw new ApiError(401, "Unauthorized. Token missing.");
+    }
+
+    let decoded: { id: string };
+
+    try {
+      decoded = jwt.verify(token, env.JWT_SECRET) as { id: string };
+    } catch {
+      throw new ApiError(401, "Session expired or token is invalid. Please login again.");
+    }
+
+    if (!decoded.id) {
+      throw new ApiError(401, "Session is invalid. Please login again.");
+    }
 
     const admin = await AdminUser.findById(decoded.id);
     if (!admin || admin.status !== "active") {
