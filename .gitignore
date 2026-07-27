@@ -6,6 +6,8 @@ node_modules/
 .env
 .env.*
 !.env.example
+!*.env.example
+
 frontend/.env.local
 frontend/.env.development.local
 frontend/.env.test.local
@@ -16,10 +18,13 @@ backend/.env
 dist/
 build/
 .next/
+.next-cache/
 out/
 coverage/
 .turbo/
 .vercel/
+release/
+dist-electron/
 
 # Logs
 logs/
@@ -35,7 +40,7 @@ pids/
 *.seed
 *.pid.lock
 
-# Uploads / generated files
+# Uploads
 uploads/
 backend/uploads/
 public/uploads/
@@ -52,27 +57,23 @@ next-env.d.ts
 .parcel-cache/
 .eslintcache
 
-# OS files
+# OS
 .DS_Store
 Thumbs.db
 desktop.ini
 
-# IDE / Editor
+# IDE
 .vscode/
 .idea/
 *.swp
 *.swo
 
-# Local database / dumps
+# Local database
 *.sqlite
 *.sqlite3
 *.db
 *.dump
 *.bak
 
-# Package manager locks - keep package-lock if you want exact installs
-# Uncomment if you do NOT want lock files committed
-# package-lock.json
-# yarn.lock
-# pnpm-lock.yaml
+# Archives
 *.zip

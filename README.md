@@ -393,3 +393,8 @@ Default development login:
 Email: admin@mystore.com
 Password: admin123456
 ```
+
+
+## Render deployment
+
+See `RENDER-DEPLOYMENT.md` and use the root `render.yaml` Blueprint.
