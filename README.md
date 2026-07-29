@@ -1,4 +1,4 @@
-# My Store POS + Mini ERP
+# Faiz Traders POS + Mini ERP
 
 Admin-only POS + mini ERP starter code for sanitary business.
 

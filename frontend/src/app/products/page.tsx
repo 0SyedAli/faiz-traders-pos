@@ -16,6 +16,7 @@ type CategoryConfig = {
   gaugeRequired?: boolean;
 };
 type CategoryWithConfig = { _id: string; name: string; config: CategoryConfig };
+type SaleType = { key: string; name: string };
 type Variant = {
   _id: string;
   name: string;
@@ -30,6 +31,7 @@ type Variant = {
   wholesalePrice: number;
   distributorPrice?: number;
   dealerPrice?: number;
+  salePrices?: Record<string, number>;
   minimumStock?: number;
   lowStockAlertQty?: number;
   description?: string;
@@ -45,9 +47,7 @@ type ProductForm = {
   gauge: string;
   lengthFeet: string;
   purchasePrice: string;
-  retailPrice: string;
-  wholesalePrice: string;
-  distributorPrice: string;
+  salePrices: Record<string, string>;
   stock: string;
   minimumStock: string;
   description: string;
@@ -62,9 +62,7 @@ const emptyForm: ProductForm = {
   gauge: "",
   lengthFeet: "0",
   purchasePrice: "0",
-  retailPrice: "0",
-  wholesalePrice: "0",
-  distributorPrice: "0",
+  salePrices: {},
   stock: "0",
   minimumStock: "5",
   description: "",
@@ -78,6 +76,7 @@ export default function ProductsPage() {
   const [brands, setBrands] = useState<Master[]>([]);
   const [variants, setVariants] = useState<Variant[]>([]);
   const [stocks, setStocks] = useState<StockRow[]>([]);
+  const [saleTypes, setSaleTypes] = useState<SaleType[]>([]);
   const [form, setForm] = useState<ProductForm>(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -103,18 +102,24 @@ export default function ProductsPage() {
     setLoading(true);
     setError("");
     try {
-      const [configRes, brandRes, variantRes, stockRes] = await Promise.all([
+      const [configRes, brandRes, variantRes, stockRes, settingsRes] = await Promise.all([
         api<{ data: CategoryWithConfig[] }>("/products/category-config"),
         api<{ data: Master[] }>("/master/brands"),
         api<{ data: Variant[] }>("/products/variants"),
-        api<{ data: StockRow[] }>("/inventory/stocks").catch(() => ({ data: [] as StockRow[] }))
+        api<{ data: StockRow[] }>("/inventory/stocks").catch(() => ({ data: [] as StockRow[] })),
+        api<{ data: { saleTypes?: SaleType[] } }>("/settings")
       ]);
       setCategories(configRes.data);
       setBrands(brandRes.data.filter((brand) => brand.name !== "No Brand"));
       setVariants(variantRes.data);
       setStocks(stockRes.data);
+      const configuredSaleTypes = settingsRes.data.saleTypes?.length
+        ? settingsRes.data.saleTypes
+        : [{ key: "retail", name: "Retail" }, { key: "wholesale", name: "Wholesale" }];
+      setSaleTypes(configuredSaleTypes);
       setForm((prev) => ({
         ...prev,
+        salePrices: Object.fromEntries(configuredSaleTypes.map((type) => [type.key, prev.salePrices[type.key] || "0"])),
         categoryId: prev.categoryId || configRes.data[0]?._id || "",
         brandId: prev.brandId || brandRes.data.find((brand) => brand.name !== "No Brand")?._id || ""
       }));
@@ -162,6 +167,7 @@ export default function ProductsPage() {
     setEditingId(null);
     setForm({
       ...emptyForm,
+      salePrices: Object.fromEntries(saleTypes.map((type) => [type.key, "0"])),
       categoryId: categories[0]?._id || "",
       brandId: brands[0]?._id || ""
     });
@@ -182,9 +188,16 @@ export default function ProductsPage() {
       gauge: item.gauge || "",
       lengthFeet: String(item.lengthFeet || 0),
       purchasePrice: String(item.purchasePrice || 0),
-      retailPrice: String(item.retailPrice || 0),
-      wholesalePrice: String(item.wholesalePrice || 0),
-      distributorPrice: String(item.distributorPrice || item.dealerPrice || 0),
+      salePrices: Object.fromEntries(saleTypes.map((type) => [
+        type.key,
+        String(item.salePrices?.[type.key] ?? (type.key === "retail"
+          ? item.retailPrice
+          : type.key === "wholesale"
+            ? item.wholesalePrice
+            : type.key === "dealer"
+              ? item.distributorPrice || item.dealerPrice || 0
+              : 0))
+      ])),
       stock: String(stockMap.get(item._id) || 0),
       minimumStock: String(item.minimumStock || item.lowStockAlertQty || 5),
       description: item.description || "",
@@ -207,9 +220,10 @@ export default function ProductsPage() {
         gauge: showGauge ? form.gauge.trim() : undefined,
         lengthFeet: showLength ? Number(form.lengthFeet || 0) : 0,
         purchasePrice: Number(form.purchasePrice || 0),
-        retailPrice: Number(form.retailPrice || 0),
-        wholesalePrice: Number(form.wholesalePrice || 0),
-        distributorPrice: Number(form.distributorPrice || 0),
+        salePrices: Object.fromEntries(saleTypes.map((type) => [type.key, Number(form.salePrices[type.key] || 0)])),
+        retailPrice: Number(form.salePrices.retail ?? form.salePrices[saleTypes[0]?.key] ?? 0),
+        wholesalePrice: Number(form.salePrices.wholesale || 0),
+        distributorPrice: Number(form.salePrices.dealer || 0),
         stock: Number(form.stock || 0),
         minimumStock: showMinimumStock ? Number(form.minimumStock || 0) : 5,
         description: showDescription ? form.description : "",
@@ -334,9 +348,19 @@ export default function ProductsPage() {
 
               <div className="k-drawer-grid">
                 <Field label="Purchase Price"><input className="input" type="number" value={form.purchasePrice} onChange={(e) => setForm({ ...form, purchasePrice: e.target.value })} required /></Field>
-                <Field label="Retail Price"><input className="input" type="number" value={form.retailPrice} onChange={(e) => setForm({ ...form, retailPrice: e.target.value })} required /></Field>
-                <Field label="Wholesale Price"><input className="input" type="number" value={form.wholesalePrice} onChange={(e) => setForm({ ...form, wholesalePrice: e.target.value })} /></Field>
-                <Field label="Distributor Price"><input className="input" type="number" value={form.distributorPrice} onChange={(e) => setForm({ ...form, distributorPrice: e.target.value })} /></Field>
+                {saleTypes.map((type) => (
+                  <Field key={type.key} label={`${type.name} Price`}>
+                    <input
+                      className="input"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={form.salePrices[type.key] || "0"}
+                      onChange={(e) => setForm({ ...form, salePrices: { ...form.salePrices, [type.key]: e.target.value } })}
+                      required
+                    />
+                  </Field>
+                ))}
                 <Field label="Stock"><input className="input" type="number" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} /></Field>
                 {showMinimumStock ? <Field label="Minimum Stock"><input className="input" type="number" value={form.minimumStock} onChange={(e) => setForm({ ...form, minimumStock: e.target.value })} /></Field> : null}
               </div>

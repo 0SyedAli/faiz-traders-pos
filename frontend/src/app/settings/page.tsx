@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { api } from "@/lib/api";
+import { runSyncCycle } from "@/lib/sync-engine";
 
 type Settings = {
   _id: string;
@@ -15,6 +16,7 @@ type Settings = {
   quotationPrefix: string;
   taxEnabled: boolean;
   defaultTaxPercentage: number;
+  saleTypes: Array<{ key: string; name: string }>;
 };
 
 type Master = {
@@ -37,7 +39,8 @@ const emptySettings: Settings = {
   purchasePrefix: "PUR",
   quotationPrefix: "QTN",
   taxEnabled: false,
-  defaultTaxPercentage: 0
+  defaultTaxPercentage: 0,
+  saleTypes: [{ key: "retail", name: "Retail" }, { key: "wholesale", name: "Wholesale" }]
 };
 
 export default function SettingsPage() {
@@ -51,11 +54,13 @@ export default function SettingsPage() {
   const [brandName, setBrandName] = useState("");
   const [categoryName, setCategoryName] = useState("");
   const [sizeName, setSizeName] = useState("");
+  const [saleTypeName, setSaleTypeName] = useState("");
   const [unitForm, setUnitForm] = useState({ name: "", shortName: "", allowDecimal: false });
   const [warehouseForm, setWarehouseForm] = useState({ name: "", type: "godown", address: "" });
 
   const [loading, setLoading] = useState(true);
   const [savingSettings, setSavingSettings] = useState(false);
+  const [savingSaleTypes, setSavingSaleTypes] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -65,7 +70,7 @@ export default function SettingsPage() {
 
     try {
       const [settingsRes, brandRes, categoryRes, unitRes, sizeRes, warehouseRes] = await Promise.all([
-        api<{ data: Settings }>("/settings"),
+        api<{ data: Settings }>("/settings", { cache: "no-store" }),
         api<{ data: Master[] }>("/master/brands"),
         api<{ data: Master[] }>("/master/categories"),
         api<{ data: Master[] }>("/master/units"),
@@ -73,7 +78,7 @@ export default function SettingsPage() {
         api<{ data: Master[] }>("/master/warehouses")
       ]);
 
-      setSettings(settingsRes.data);
+      setSettings({ ...settingsRes.data, saleTypes: settingsRes.data.saleTypes?.length ? settingsRes.data.saleTypes : emptySettings.saleTypes });
       setBrands(brandRes.data);
       setCategories(categoryRes.data);
       setUnits(unitRes.data);
@@ -90,8 +95,8 @@ export default function SettingsPage() {
     loadAll();
   }, []);
 
-  const saveSettings = async (event: FormEvent) => {
-    event.preventDefault();
+  const saveSettings = async (event?: FormEvent) => {
+    event?.preventDefault();
     setMessage("");
     setError("");
     setSavingSettings(true);
@@ -108,16 +113,71 @@ export default function SettingsPage() {
           purchasePrefix: settings.purchasePrefix,
           quotationPrefix: settings.quotationPrefix,
           taxEnabled: settings.taxEnabled,
-          defaultTaxPercentage: Number(settings.defaultTaxPercentage || 0)
+          defaultTaxPercentage: Number(settings.defaultTaxPercentage || 0),
+          saleTypes: settings.saleTypes
         })
       });
 
-      setSettings(res.data);
+      setSettings({
+        ...res.data,
+        saleTypes: res.data.saleTypes?.length ? res.data.saleTypes : settings.saleTypes
+      });
       setMessage("Business settings updated.");
+      void runSyncCycle(true);
     } catch (err: any) {
       setError(err.message || "Settings save failed");
     } finally {
       setSavingSettings(false);
+    }
+  };
+
+  const addSaleType = async (event: FormEvent) => {
+    event.preventDefault();
+    const name = saleTypeName.trim();
+    const key = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    const currentSaleTypes = settings.saleTypes || [];
+    if (!key) return;
+    if (currentSaleTypes.some((item) => item.key === key)) {
+      setError("This sale type already exists.");
+      return;
+    }
+    setMessage("");
+    setError("");
+    setSavingSaleTypes(true);
+    try {
+      const res = await api<{ data: Settings }>("/settings/sale-types", {
+        method: "POST",
+        body: JSON.stringify({ key, name })
+      });
+      if (!res.data.saleTypes?.some((item) => item.key === key)) {
+        throw new Error("Backend did not persist the sale type. Restart the updated backend and try again.");
+      }
+      setSettings(res.data);
+      setSaleTypeName("");
+      setMessage("Sale type added successfully.");
+      void runSyncCycle(true);
+    } catch (err: any) {
+      setError(err.message || "Sale type save failed");
+    } finally {
+      setSavingSaleTypes(false);
+    }
+  };
+
+  const deleteSaleType = async (key: string) => {
+    const currentSaleTypes = settings.saleTypes || [];
+    if (currentSaleTypes.length <= 1) return;
+    setMessage("");
+    setError("");
+    setSavingSaleTypes(true);
+    try {
+      const res = await api<{ data: Settings }>(`/settings/sale-types/${encodeURIComponent(key)}`, { method: "DELETE" });
+      setSettings(res.data);
+      setMessage("Sale type deleted successfully.");
+      void runSyncCycle(true);
+    } catch (err: any) {
+      setError(err.message || "Sale type delete failed");
+    } finally {
+      setSavingSaleTypes(false);
     }
   };
 
@@ -275,6 +335,41 @@ export default function SettingsPage() {
                 {savingSettings ? "Saving..." : "Save Settings"}
               </button>
             </form>
+          </div>
+
+          <div className="card" style={{ marginTop: 18 }}>
+            <div className="section-title">
+              <h3>Sale Types</h3>
+              <span className="badge">{(settings.saleTypes || []).length}</span>
+            </div>
+            <p className="muted-small">These sale types control the price fields shown on products and the options shown in POS.</p>
+            <form className="inline-form" onSubmit={addSaleType}>
+              <input
+                className="input"
+                value={saleTypeName}
+                onChange={(e) => setSaleTypeName(e.target.value)}
+                placeholder="Retail, Wholesale, Dealer"
+                disabled={savingSaleTypes}
+              />
+              <button className="btn" disabled={savingSaleTypes || !saleTypeName.trim()}>
+                {savingSaleTypes ? "Saving..." : "Add Sale Type"}
+              </button>
+            </form>
+            <div className="category-list">
+              {(settings.saleTypes || []).map((item) => (
+                <div className="category-pill" key={item.key}>
+                  <span>{item.name}</span>
+                  <button
+                    className="pill-x"
+                    type="button"
+                    disabled={savingSaleTypes || (settings.saleTypes || []).length === 1}
+                    onClick={() => void deleteSaleType(item.key)}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
 
           <div className="two-column" style={{ marginTop: 18 }}>

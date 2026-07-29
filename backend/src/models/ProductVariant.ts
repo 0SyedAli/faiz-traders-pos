@@ -34,6 +34,7 @@ const productVariantSchema = new Schema(
     retailPrice: { type: Number, required: true, min: 0 },
     wholesalePrice: { type: Number, default: 0, min: 0 },
     distributorPrice: { type: Number, default: 0, min: 0 },
+    salePrices: { type: Map, of: Number, default: {} },
 
     // Old pricing fields kept for compatibility with existing POS customer types.
     plumberPrice: { type: Number, default: 0, min: 0 },

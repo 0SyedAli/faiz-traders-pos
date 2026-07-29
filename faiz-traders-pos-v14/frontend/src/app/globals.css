@@ -1674,7 +1674,7 @@ tbody tr:hover {
 
 /* v13 Kanakku-inspired clean UI */
 :root {
-  --k-purple: #7539ff;
+  --k-purple: #194784;
   --k-purple-soft: #f3efff;
   --k-bg: #fff;
   --k-body: #f7f8fb;
@@ -2492,7 +2492,7 @@ textarea.input {
 
 .fast-search {
   width: 100%;
-  border: 2px solid #7539ff;
+  border: 2px solid #194784;
   border-radius: 12px;
   padding: 16px 18px;
   font-size: 18px;
@@ -2546,7 +2546,7 @@ textarea.input {
 .pos-cats button:hover,
 .pos-cats button.active {
   background: #f3efff;
-  color: #7539ff;
+  color: #194784;
 }
 
 .pos-results {
@@ -2572,7 +2572,7 @@ textarea.input {
 
 .pos-result:hover,
 .pos-result.active {
-  border-color: #7539ff;
+  border-color: #194784;
   background: #fbf9ff;
   box-shadow: 0 8px 20px rgba(117, 57, 255, .08);
 }
@@ -2692,7 +2692,7 @@ textarea.input {
 
 .checkout-btn {
   border: 0;
-  background: #7539ff;
+  background: #194784;
   color: #fff;
   border-radius: 10px;
   padding: 14px;
@@ -2709,7 +2709,7 @@ textarea.input {
 .last-invoice-link {
   text-align: center;
   font-weight: 900;
-  color: #7539ff;
+  color: #194784;
   text-decoration: none;
 }
 

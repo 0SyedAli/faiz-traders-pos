@@ -46,6 +46,7 @@ offlineRoutes.get("/bootstrap", asyncHandler(async (_req, res) => {
       wholesalePrice: Number(variant.wholesalePrice || 0),
       distributorPrice: Number(variant.distributorPrice || variant.dealerPrice || 0),
       dealerPrice: Number(variant.distributorPrice || variant.dealerPrice || 0),
+      salePrices: variant.salePrices instanceof Map ? Object.fromEntries(variant.salePrices) : variant.salePrices || {},
       stockQty: Number(stock.quantity || 0),
       status: variant.status,
       updatedAt: stock.updatedAt || variant.updatedAt,

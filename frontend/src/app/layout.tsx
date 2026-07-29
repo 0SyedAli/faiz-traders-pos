@@ -11,7 +11,7 @@ const instrument_sans = Instrument_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "My Store POS ERP",
+  title: "Faiz Traders POS ERP",
   description: "Offline-first sanitary POS + mini ERP",
 };
 

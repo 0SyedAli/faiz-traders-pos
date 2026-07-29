@@ -15,9 +15,9 @@ import type { LocalCategory, LocalCustomer, LocalProduct, LocalSale, LocalWareho
 const money = (value: number) => `Rs. ${Number(value || 0).toLocaleString()}`;
 
 const priceForSaleType = (product: LocalProduct, saleType: string) => {
+  if (saleType && product.salePrices?.[saleType] !== undefined) return product.salePrices[saleType];
   if (saleType === "wholesale" && product.wholesalePrice > 0) return product.wholesalePrice;
   if (saleType === "dealer" && (product.distributorPrice || product.dealerPrice) > 0) return product.distributorPrice || product.dealerPrice;
-  if (saleType === "plumber" && product.wholesalePrice > 0) return product.wholesalePrice;
   return product.retailPrice;
 };
 
@@ -29,12 +29,13 @@ export default function PosPage() {
   const [warehouses, setWarehouses] = useState<LocalWarehouse[]>([]);
   const [categories, setCategories] = useState<LocalCategory[]>([]);
   const [customers, setCustomers] = useState<LocalCustomer[]>([]);
+  const [saleTypes, setSaleTypes] = useState<Array<{ key: string; name: string }>>([]);
   const [warehouseProducts, setWarehouseProducts] = useState<LocalProduct[]>([]);
   const [products, setProducts] = useState<Array<LocalProduct & { salePrice: number }>>([]);
   const [warehouseId, setWarehouseId] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [customerId, setCustomerId] = useState("");
-  const [saleType, setSaleType] = useState("retail");
+  const [saleType, setSaleType] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [search, setSearch] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -49,15 +50,19 @@ export default function PosPage() {
   const searchEngine = useMemo(() => new FastProductSearch(warehouseProducts), [warehouseProducts]);
 
   const loadBase = async () => {
-    const [localWarehouses, localCategories, localCustomers] = await Promise.all([
+    const [localWarehouses, localCategories, localCustomers, localSettings] = await Promise.all([
       offlineDb.warehouses.toArray(),
       offlineDb.categories.orderBy("name").toArray(),
       offlineDb.customers.where("status").equals("active").toArray(),
+      offlineDb.settings.get("business"),
     ]);
 
     setWarehouses(localWarehouses);
     setCategories(localCategories);
     setCustomers(localCustomers);
+    const configuredSaleTypes = (localSettings?.value as { saleTypes?: Array<{ key: string; name: string }> } | undefined)?.saleTypes;
+    setSaleTypes(configuredSaleTypes?.length ? configuredSaleTypes : [{ key: "retail", name: "Retail" }, { key: "wholesale", name: "Wholesale" }]);
+    setSaleType((previous) => configuredSaleTypes?.some((type) => type.key === previous) ? previous : "");
     setWarehouseId((previous) => previous || localWarehouses.find((row) => row.type === "shop")?.id || localWarehouses[0]?.id || "");
     setCustomerId((previous) => previous || localCustomers.find((row) => row.customerType === "walkin")?.id || localCustomers[0]?.id || "");
   };
@@ -86,12 +91,9 @@ export default function PosPage() {
 
   const selectedCustomer = customers.find((customer) => customer.id === customerId);
   useEffect(() => {
-    if (!selectedCustomer) return;
-    if (selectedCustomer.customerType === "walkin") {
-      setSaleType("retail");
-      if (paymentMethod === "credit") setPaymentMethod("cash");
-    } else if (selectedCustomer.customerType === "dealer") setSaleType("dealer");
-    else if (selectedCustomer.customerType === "plumber") setSaleType("wholesale");
+    if (selectedCustomer?.customerType === "walkin" && paymentMethod === "credit") {
+      setPaymentMethod("cash");
+    }
   }, [customerId, selectedCustomer, paymentMethod]);
 
   const totals = useMemo(() => {
@@ -108,6 +110,7 @@ export default function PosPage() {
 
   const addProductToCart = (product: LocalProduct & { salePrice: number }) => {
     setError("");
+    if (!saleType) return setError("Select a sale type before adding products.");
     if (product.stockQty <= 0) return setError("This product is out of stock.");
     dispatch(addItem({
       _id: product.serverId,
@@ -120,9 +123,9 @@ export default function PosPage() {
       lengthFeet: product.lengthFeet,
       purchasePrice: product.purchasePrice,
       retailPrice: product.retailPrice,
-      wholesalePrice: product.wholesalePrice,
+              wholesalePrice: product.wholesalePrice,
       distributorPrice: product.distributorPrice,
-      dealerPrice: product.dealerPrice,
+              dealerPrice: product.dealerPrice,
       salePrice: product.salePrice,
       stockQty: product.stockQty,
     }));
@@ -143,6 +146,7 @@ export default function PosPage() {
     setMessage(""); setError(""); setSaving(true);
 
     try {
+      if (!saleType) throw new Error("Please select a sale type.");
       const sale = await createOfflineSale({
         customerId,
         warehouseId,
@@ -187,7 +191,7 @@ export default function PosPage() {
             {products.length === 0 ? <div className="placeholder">No product found in local database.</div> : products.map((product, index) => (
               <button type="button" key={product.id} className={index === selectedIndex ? "pos-result active" : "pos-result"} onClick={() => addProductToCart(product)}>
                 <div><strong>{product.name}</strong><span>{product.category}{product.size ? ` | ${product.size}` : ""}{product.brand ? ` | ${product.brand}` : ""}{product.gauge ? ` | Gauge ${product.gauge}` : ""}</span></div>
-                <div><strong>{money(product.salePrice)}</strong><span>Stock: {product.stockQty}</span></div>
+                <div><strong>{saleType ? money(product.salePrice) : "Select sale type"}</strong><span>Stock: {product.stockQty}</span></div>
               </button>
             ))}
           </main>
@@ -195,11 +199,15 @@ export default function PosPage() {
             <div className="cart-head"><h3>Invoice Cart</h3><button type="button" onClick={() => dispatch(clearCart())}>Clear</button></div>
             <select className="select" value={customerId} onChange={(event) => setCustomerId(event.target.value)}>{customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name} — {customer.customerType}</option>)}</select>
             <select className="select" value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)}><option value="cash">Cash</option><option value="bank">Bank</option><option value="mixed">Mixed</option>{selectedCustomer?.customerType !== "walkin" ? <option value="credit">Credit / Khata</option> : null}</select>
+            <select className="select" value={saleType} onChange={(event) => setSaleType(event.target.value)} required>
+              <option value="" disabled>Select Sale Type</option>
+              {saleTypes.map((type) => <option key={type.key} value={type.key}>{type.name}</option>)}
+            </select>
             <div className="cart-items">
               {cart.map((item: PosCartItem) => <div className="cart-line" key={item._id}><div><strong>{item.name}</strong><span>{item.size || ""}</span></div><input type="number" min="0.001" step="0.001" max={item.stockQty} value={item.quantity} onChange={(event) => dispatch(updateItem({ id: item._id, patch: { quantity: Number(event.target.value) } }))} /><input type="number" step="0.01" value={item.salePrice} onChange={(event) => dispatch(updateItem({ id: item._id, patch: { salePrice: Number(event.target.value) } }))} /><button type="button" onClick={() => dispatch(removeItem(item._id))}>×</button></div>)}
             </div>
             <div className="cart-totals"><div><span>Subtotal</span><strong>{money(totals.subtotal)}</strong></div><div><span>Discount</span><input type="number" value={discountAmount} onChange={(event) => setDiscountAmount(Number(event.target.value))} /></div><div><span>Grand Total</span><strong>{money(totals.grandTotal)}</strong></div><div><span>Paid</span><input type="number" value={paidAmount} onChange={(event) => setPaidAmount(Number(event.target.value))} disabled={paymentMethod === "credit"} /></div><div><span>Due</span><strong>{money(totals.due)}</strong></div></div>
-            <button className="checkout-btn" disabled={saving || !cart.length}>{saving ? "Saving Locally..." : "Checkout"}</button>
+            <button className="checkout-btn" disabled={saving || !cart.length || !saleType}>{saving ? "Saving Locally..." : "Checkout"}</button>
             {lastSale ? <Link className="last-invoice-link" href={`/offline-sales/${lastSale.id}`}>Open {lastSale.invoiceNo}</Link> : null}
           </aside>
         </div>

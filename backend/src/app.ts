@@ -28,7 +28,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(morgan("dev"));
 
 app.get("/health", (_req, res) => {
-  res.json({ success: true, message: "My Store POS ERP API is running." });
+  res.json({ success: true, message: "Faiz Traders POS ERP API is running." });
 });
 
 app.use("/api/auth", authRoutes);

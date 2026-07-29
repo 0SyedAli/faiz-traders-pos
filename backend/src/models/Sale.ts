@@ -55,8 +55,8 @@ const saleSchema = new Schema(
 
     saleType: {
       type: String,
-      default: "walkin",
-      enum: ["walkin", "retail", "wholesale", "plumber", "dealer"]
+      required: true,
+      trim: true
     },
 
     note: { type: String, trim: true }

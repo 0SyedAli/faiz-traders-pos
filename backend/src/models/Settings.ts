@@ -12,7 +12,14 @@ const settingsSchema = new Schema(
     quotationPrefix: { type: String, default: "QTN" },
 
     taxEnabled: { type: Boolean, default: false },
-    defaultTaxPercentage: { type: Number, default: 0 }
+    defaultTaxPercentage: { type: Number, default: 0 },
+    saleTypes: {
+      type: [{ key: { type: String, required: true, trim: true }, name: { type: String, required: true, trim: true } }],
+      default: [
+        { key: "retail", name: "Retail" },
+        { key: "wholesale", name: "Wholesale" }
+      ]
+    }
   },
   { timestamps: true }
 );

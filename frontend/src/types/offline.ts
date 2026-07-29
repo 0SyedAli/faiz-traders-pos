@@ -44,6 +44,7 @@ export type LocalProduct = {
   wholesalePrice: number;
   distributorPrice: number;
   dealerPrice: number;
+  salePrices: Record<string, number>;
   stockQty: number;
   status: string;
   searchText: string;

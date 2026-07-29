@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -8,6 +9,7 @@ import { FaChevronDown, FaHome } from "react-icons/fa";
 import { IoSettingsOutline } from "react-icons/io5";
 import { MdOutlineInventory2 } from "react-icons/md";
 import { TbFileInvoice } from "react-icons/tb";
+import { TbLogout2 } from "react-icons/tb";
 
 type MenuGroup = { title: string; icon: React.ReactNode; items: { href: string; label: string }[] };
 
@@ -134,7 +136,16 @@ export function DashboardLayout({ title, children }: { title: string; children: 
 
       <aside className={mobileOpen ? "k-sidebar mobile-visible" : "k-sidebar"}>
         <div className="k-logo-row">
-          <Link href="/dashboard" className="k-logo"><span className="k-logo-mark">FT</span><strong>Faiz Traders</strong></Link>
+          <Link href="/dashboard" className="k-logo">
+            <Image
+              src="/images/logo-wbg.png"
+              alt="Faiz Traders Logo"
+              width={300}
+              height={100}
+              style={{ width: "100%", height: "100px" }}
+              priority
+            />
+          </Link>
           <button className="k-sidebar-close" onClick={() => setMobileOpen(false)}>×</button>
         </div>
 
@@ -153,6 +164,8 @@ export function DashboardLayout({ title, children }: { title: string; children: 
               </div>
             );
           })}
+          <button className="k-home" style={{ width: "100%" }} onClick={logout}><TbLogout2 /> Logout</button>
+
         </nav>
       </aside>
 

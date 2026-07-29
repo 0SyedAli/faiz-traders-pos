@@ -37,6 +37,7 @@ export type BootstrapPayload = {
     wholesalePrice?: number;
     distributorPrice?: number;
     dealerPrice?: number;
+    salePrices?: Record<string, number>;
     stockQty: number;
     status: string;
     updatedAt?: string;
@@ -101,6 +102,10 @@ export const applyBootstrap = async (payload: BootstrapPayload) => {
       wholesalePrice: Number(row.wholesalePrice || 0),
       distributorPrice: Number(row.distributorPrice || 0),
       dealerPrice: Number(row.dealerPrice || row.distributorPrice || 0),
+      salePrices: row.salePrices || {
+        retail: Number(row.retailPrice || 0),
+        wholesale: Number(row.wholesalePrice || 0),
+      },
       stockQty: Number(row.stockQty || 0),
       status: row.status || "active",
       searchText: "",

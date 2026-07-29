@@ -47,7 +47,7 @@ export default function LoginPage() {
     <main className="auth-page">
       <form className="auth-card" onSubmit={submit}>
         <h1>Admin Login</h1>
-        <p>My Store sanitary POS + mini ERP</p>
+        <p>Faiz Traders sanitary POS + mini ERP</p>
 
         {error ? <div className="error">{error}</div> : null}
 

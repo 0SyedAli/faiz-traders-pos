@@ -55,11 +55,12 @@ const dynamicVariantSchema = z.object({
   lengthFeet: z.number().min(0).optional(),
 
   purchasePrice: z.number().min(0),
-  retailPrice: z.number().min(0),
+  retailPrice: z.number().min(0).optional(),
   wholesalePrice: z.number().min(0).optional(),
   distributorPrice: z.number().min(0).optional(),
   dealerPrice: z.number().min(0).optional(),
   plumberPrice: z.number().min(0).optional(),
+  salePrices: z.record(z.number().min(0)).optional(),
 
   stock: z.number().min(0).optional(),
   openingStock: z.number().min(0).optional(),
@@ -259,9 +260,13 @@ const prepareVariantPayload = async (raw: z.infer<typeof dynamicVariantSchema>) 
       baseUnit: saleUnit === "length" ? "feet" : "piece",
       lengthPerPiece: lengthFeet,
       purchasePrice: raw.purchasePrice,
-      retailPrice: raw.retailPrice,
+      retailPrice: raw.retailPrice ?? raw.salePrices?.retail ?? Object.values(raw.salePrices || {})[0] ?? 0,
       wholesalePrice: raw.wholesalePrice || 0,
       distributorPrice: raw.distributorPrice || raw.dealerPrice || 0,
+      salePrices: raw.salePrices || {
+        retail: raw.retailPrice || 0,
+        wholesale: raw.wholesalePrice || 0
+      },
       dealerPrice: raw.distributorPrice || raw.dealerPrice || 0,
       plumberPrice: raw.wholesalePrice || 0,
       minimumStock: raw.minimumStock || raw.lowStockAlertQty || 5,

@@ -34,7 +34,7 @@ const saleSchema = z.object({
   discountAmount: z.number().min(0).optional(),
   paidAmount: z.number().min(0).optional(),
   paymentMethod: z.enum(["cash", "bank", "easypaisa", "jazzcash", "credit", "mixed"]).default("cash"),
-  saleType: z.enum(["walkin", "retail", "wholesale", "plumber", "dealer"]).default("walkin"),
+  saleType: z.string().min(1),
   note: z.string().optional()
 });
 
@@ -66,9 +66,10 @@ const paymentStatus = (grandTotal: number, paidAmount: number) => {
 };
 
 const priceForSaleType = (variant: any, saleType: string) => {
+  const dynamicPrice = variant.salePrices?.get?.(saleType) ?? variant.salePrices?.[saleType];
+  if (dynamicPrice !== undefined) return Number(dynamicPrice);
   if (saleType === "wholesale" && Number(variant.wholesalePrice || 0) > 0) return Number(variant.wholesalePrice);
   if (saleType === "dealer" && Number(variant.distributorPrice || variant.dealerPrice || 0) > 0) return Number(variant.distributorPrice || variant.dealerPrice);
-  if (saleType === "plumber" && Number(variant.wholesalePrice || 0) > 0) return Number(variant.wholesalePrice);
   return Number(variant.retailPrice || 0);
 };
 
@@ -119,6 +120,7 @@ saleRoutes.get("/pos-products", asyncHandler(async (req, res) => {
       wholesalePrice: variant.wholesalePrice,
       distributorPrice: variant.distributorPrice || variant.dealerPrice,
       dealerPrice: variant.distributorPrice || variant.dealerPrice,
+      salePrices: variant.salePrices instanceof Map ? Object.fromEntries(variant.salePrices) : variant.salePrices || {},
       salePrice: priceForSaleType(variant, saleType),
       stockQty: stockMap.get(String(variant._id)) || 0
     };
