@@ -60,11 +60,11 @@ const emptyForm: ProductForm = {
   brandId: "",
   sizeLabel: "",
   gauge: "",
-  lengthFeet: "0",
-  purchasePrice: "0",
+  lengthFeet: "",
+  purchasePrice: "",
   salePrices: {},
-  stock: "0",
-  minimumStock: "5",
+  stock: "",
+  minimumStock: "",
   description: "",
   status: "active"
 };
@@ -119,7 +119,7 @@ export default function ProductsPage() {
       setSaleTypes(configuredSaleTypes);
       setForm((prev) => ({
         ...prev,
-        salePrices: Object.fromEntries(configuredSaleTypes.map((type) => [type.key, prev.salePrices[type.key] || "0"])),
+        salePrices: Object.fromEntries(configuredSaleTypes.map((type) => [type.key, prev.salePrices[type.key] || ""])),
         categoryId: prev.categoryId || configRes.data[0]?._id || "",
         brandId: prev.brandId || brandRes.data.find((brand) => brand.name !== "No Brand")?._id || ""
       }));
@@ -167,7 +167,7 @@ export default function ProductsPage() {
     setEditingId(null);
     setForm({
       ...emptyForm,
-      salePrices: Object.fromEntries(saleTypes.map((type) => [type.key, "0"])),
+      salePrices: Object.fromEntries(saleTypes.map((type) => [type.key, ""])),
       categoryId: categories[0]?._id || "",
       brandId: brands[0]?._id || ""
     });
@@ -347,22 +347,24 @@ export default function ProductsPage() {
               {showLength ? <Field label="Length"><input className="input" type="number" value={form.lengthFeet} onChange={(e) => setForm({ ...form, lengthFeet: e.target.value })} disabled={config?.fixedLengthFeet !== undefined} /></Field> : null}
 
               <div className="k-drawer-grid">
-                <Field label="Purchase Price"><input className="input" type="number" value={form.purchasePrice} onChange={(e) => setForm({ ...form, purchasePrice: e.target.value })} required /></Field>
+                <Field label="Purchase Price"><input className="input" type="number" placeholder="0"
+                  value={form.purchasePrice} onChange={(e) => setForm({ ...form, purchasePrice: e.target.value })} required /></Field>
                 {saleTypes.map((type) => (
                   <Field key={type.key} label={`${type.name} Price`}>
                     <input
                       className="input"
                       type="number"
                       min="0"
-                      step="0.01"
-                      value={form.salePrices[type.key] || "0"}
+                      step="0"
+                      placeholder="0"
+                      value={form.salePrices[type.key] || ""}
                       onChange={(e) => setForm({ ...form, salePrices: { ...form.salePrices, [type.key]: e.target.value } })}
                       required
                     />
                   </Field>
                 ))}
-                <Field label="Stock"><input className="input" type="number" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} /></Field>
-                {showMinimumStock ? <Field label="Minimum Stock"><input className="input" type="number" value={form.minimumStock} onChange={(e) => setForm({ ...form, minimumStock: e.target.value })} /></Field> : null}
+                <Field label="Stock"><input className="input" placeholder="0" type="number" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} /></Field>
+                {showMinimumStock ? <Field label="Minimum Stock"><input className="input" placeholder="0" type="number" value={form.minimumStock} onChange={(e) => setForm({ ...form, minimumStock: e.target.value })} /></Field> : null}
               </div>
               {showDescription ? <Field label="Description"><textarea className="input" rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></Field> : null}
               <button className="k-primary-btn full" disabled={saving}>{saving ? "Saving..." : editingId ? "Update Product" : "Save Product"}</button>

@@ -116,15 +116,55 @@ const getMainShop = async (warehouseName?: string) => {
   return findOrCreateByName(Warehouse, clean(warehouseName) || "Main Shop", { type: "shop" });
 };
 
-const createSku = async (categoryName: string) => {
-  const prefix = clean(categoryName)
+// const createSku = async (categoryName: string) => {
+//   const prefix = clean(categoryName)
+//     .split(/\s+/)
+//     .map((word) => word[0])
+//     .join("")
+//     .toUpperCase()
+//     .slice(0, 4) || "PRD";
+//   const count = await ProductVariant.countDocuments();
+//   return `${prefix}-${String(count + 1).padStart(5, "0")}`;
+// };
+
+const createSku = async ({
+  categoryName,
+  brandName,
+  sizeLabel
+}: {
+  categoryName: string;
+  brandName?: string;
+  sizeLabel?: string;
+}) => {
+
+  const categoryPrefix = clean(categoryName)
     .split(/\s+/)
-    .map((word) => word[0])
+    .map(word => word[0])
     .join("")
     .toUpperCase()
     .slice(0, 4) || "PRD";
-  const count = await ProductVariant.countDocuments();
-  return `${prefix}-${String(count + 1).padStart(5, "0")}`;
+
+
+  const brandPrefix = clean(brandName)
+    .replace(/\s+/g, "")
+    .toUpperCase()
+    .slice(0, 3) || "NOB";
+
+
+  const sizePrefix = clean(sizeLabel)
+    .replace(/[^a-zA-Z0-9]/g, "")
+    .toUpperCase()
+    .slice(0, 3) || "NA";
+
+
+  const existing = await ProductVariant.countDocuments({
+    sku: {
+      $regex: `^${categoryPrefix}-${brandPrefix}-${sizePrefix}`
+    }
+  });
+
+
+  return `${categoryPrefix}-${brandPrefix}-${sizePrefix}-${String(existing + 1).padStart(5, "0")}`;
 };
 
 const getLengthByCategory = (categoryName: string, inputLength?: number) => {
@@ -158,7 +198,10 @@ const validateDynamicFields = ({ categoryName, brandId, sizeLabel, gauge }: any)
 const ensureVariantDuplicateFree = async ({ duplicateKey, sku, excludeId }: { duplicateKey: string; sku: string; excludeId?: string }) => {
   const skuFilter: any = { sku: cleanUpper(sku) };
   if (excludeId) skuFilter._id = { $ne: excludeId };
-  const duplicateSku = await ProductVariant.findOne(skuFilter);
+  // const duplicateSku = await ProductVariant.findOne(skuFilter);
+  const duplicateSku = await ProductVariant.findOne({
+    sku: cleanUpper(sku)
+  });
   if (duplicateSku) throw new ApiError(400, `Duplicate SKU restricted: "${sku}" already exists.`);
 
   const filter: any = { duplicateKey };
@@ -203,6 +246,7 @@ const prepareVariantPayload = async (raw: z.infer<typeof dynamicVariantSchema>) 
 
   const productNameForGroup = name;
   let product = raw.productId ? await Product.findById(raw.productId) : null;
+
   if (!product) {
     product = await Product.findOne({
       name: exactNameQuery(productNameForGroup),
@@ -221,7 +265,13 @@ const prepareVariantPayload = async (raw: z.infer<typeof dynamicVariantSchema>) 
   }
 
   const unit = await getDefaultUnit();
-  const sku = cleanUpper(raw.sku) || await createSku(categoryName);
+  // const sku = cleanUpper(raw.sku) || await createSku(categoryName);
+  const sku = cleanUpper(raw.sku) || await createSku({
+    categoryName,
+    brandName: brand?.name,
+    sizeLabel
+  });
+
   const duplicateKey = buildDuplicateKey({
     name,
     categoryName,
@@ -230,6 +280,7 @@ const prepareVariantPayload = async (raw: z.infer<typeof dynamicVariantSchema>) 
     gauge,
     lengthFeet
   });
+
   const searchText = buildSearchText({
     name,
     categoryName,
@@ -238,6 +289,7 @@ const prepareVariantPayload = async (raw: z.infer<typeof dynamicVariantSchema>) 
     gauge,
     sku
   });
+
   const saleUnit = getSaleUnitByCategory(categoryName);
 
   return {
@@ -462,7 +514,11 @@ productRoutes.post("/variants/bulk", asyncHandler(async (req, res) => {
       seen.set(key, rowNo);
 
       const brand = brandName ? await findOrCreateByName(Brand, brandName) : await getDefaultBrand();
-      const sku = cleanUpper(row.sku) || await createSku(category.name);
+      const sku = cleanUpper(row.sku) || await createSku({
+        categoryName: category.name,
+        brandName: brandName,
+        sizeLabel: row.size
+      });
 
       const payload = {
         name: row.productName,
