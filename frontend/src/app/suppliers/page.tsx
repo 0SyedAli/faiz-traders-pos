@@ -261,7 +261,7 @@ export default function SuppliersPage() {
                 <input
                   className="input"
                   type="number"
-                  step="0.01"
+                  step="1"
                   value={supplierForm.openingBalance}
                   onChange={(e) => setSupplierForm({ ...supplierForm, openingBalance: e.target.value })}
                   disabled={Boolean(editingId)}
@@ -375,7 +375,7 @@ export default function SuppliersPage() {
                   <input
                     className="input"
                     type="number"
-                    step="0.01"
+                    step="1"
                     value={paymentAmount}
                     onChange={(e) => setPaymentAmount(e.target.value)}
                     placeholder="Payment amount"

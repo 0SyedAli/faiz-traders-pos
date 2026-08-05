@@ -29,13 +29,15 @@ export default function PosPage() {
   const [warehouses, setWarehouses] = useState<LocalWarehouse[]>([]);
   const [categories, setCategories] = useState<LocalCategory[]>([]);
   const [customers, setCustomers] = useState<LocalCustomer[]>([]);
-  const [saleTypes, setSaleTypes] = useState<Array<{ key: string; name: string }>>([]);
+  const [saleTypes, setSaleTypes] = useState([
+    { key: "retail", name: "Retail" }
+  ]);
+  const [saleType, setSaleType] = useState("retail");
   const [warehouseProducts, setWarehouseProducts] = useState<LocalProduct[]>([]);
   const [products, setProducts] = useState<Array<LocalProduct & { salePrice: number }>>([]);
   const [warehouseId, setWarehouseId] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [customerId, setCustomerId] = useState("");
-  const [saleType, setSaleType] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [search, setSearch] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -50,6 +52,7 @@ export default function PosPage() {
   const searchEngine = useMemo(() => new FastProductSearch(warehouseProducts), [warehouseProducts]);
 
   const loadBase = async () => {
+
     const [localWarehouses, localCategories, localCustomers, localSettings] = await Promise.all([
       offlineDb.warehouses.toArray(),
       offlineDb.categories.orderBy("name").toArray(),
@@ -62,7 +65,14 @@ export default function PosPage() {
     setCustomers(localCustomers);
     const configuredSaleTypes = (localSettings?.value as { saleTypes?: Array<{ key: string; name: string }> } | undefined)?.saleTypes;
     setSaleTypes(configuredSaleTypes?.length ? configuredSaleTypes : [{ key: "retail", name: "Retail" }, { key: "wholesale", name: "Wholesale" }]);
-    setSaleType((previous) => configuredSaleTypes?.some((type) => type.key === previous) ? previous : "");
+    // setSaleType((previous) => configuredSaleTypes?.some((type) => type.key === previous) ? previous : "");
+    setSaleType((previous) => {
+      if (configuredSaleTypes?.some((type) => type.key === previous)) {
+        return previous;
+      }
+
+      return configuredSaleTypes?.[0]?.key || "retail";
+    });
     setWarehouseId((previous) => previous || localWarehouses.find((row) => row.type === "shop")?.id || localWarehouses[0]?.id || "");
     setCustomerId((previous) => previous || localCustomers.find((row) => row.customerType === "walkin")?.id || localCustomers[0]?.id || "");
   };
@@ -123,9 +133,9 @@ export default function PosPage() {
       lengthFeet: product.lengthFeet,
       purchasePrice: product.purchasePrice,
       retailPrice: product.retailPrice,
-              wholesalePrice: product.wholesalePrice,
+      wholesalePrice: product.wholesalePrice,
       distributorPrice: product.distributorPrice,
-              dealerPrice: product.dealerPrice,
+      dealerPrice: product.dealerPrice,
       salePrice: product.salePrice,
       stockQty: product.stockQty,
     }));
@@ -204,9 +214,17 @@ export default function PosPage() {
               {saleTypes.map((type) => <option key={type.key} value={type.key}>{type.name}</option>)}
             </select>
             <div className="cart-items">
-              {cart.map((item: PosCartItem) => <div className="cart-line" key={item._id}><div><strong>{item.name}</strong><span>{item.size || ""}</span></div><input type="number" min="0.001" step="0.001" max={item.stockQty} value={item.quantity} onChange={(event) => dispatch(updateItem({ id: item._id, patch: { quantity: Number(event.target.value) } }))} /><input type="number" step="0.01" value={item.salePrice} onChange={(event) => dispatch(updateItem({ id: item._id, patch: { salePrice: Number(event.target.value) } }))} /><button type="button" onClick={() => dispatch(removeItem(item._id))}>×</button></div>)}
+              {cart.map((item: PosCartItem) => <div className="cart-line" key={item._id}><div><strong>{item.name}</strong><span>{item.size || ""}</span></div><input type="number" min="1" step="1" max={item.stockQty} value={item.quantity} onChange={(event) => dispatch(updateItem({ id: item._id, patch: { quantity: Number(event.target.value) } }))} /><input type="number" step="1" value={item.salePrice} onChange={(event) => dispatch(updateItem({ id: item._id, patch: { salePrice: Number(event.target.value) } }))} /><button type="button" onClick={() => dispatch(removeItem(item._id))}>×</button></div>)}
             </div>
-            <div className="cart-totals"><div><span>Subtotal</span><strong>{money(totals.subtotal)}</strong></div><div><span>Discount</span><input type="number" value={discountAmount} onChange={(event) => setDiscountAmount(Number(event.target.value))} /></div><div><span>Grand Total</span><strong>{money(totals.grandTotal)}</strong></div><div><span>Paid</span><input type="number" value={paidAmount} onChange={(event) => setPaidAmount(Number(event.target.value))} disabled={paymentMethod === "credit"} /></div><div><span>Due</span><strong>{money(totals.due)}</strong></div></div>
+            <div className="cart-totals"><div><span>Subtotal</span><strong>{money(totals.subtotal)}</strong></div><div><span>Discount</span>
+              {/* <input type="number" value={discountAmount} min="0" onChange={(event) => setDiscountAmount(Number(event.target.value))} /> */}
+              <input
+                type="number"
+                placeholder="0"
+                value={discountAmount === 0 ? "" : discountAmount}
+                onChange={(e) => setDiscountAmount(Number(e.target.value) || 0)}
+              />
+            </div><div><span>Grand Total</span><strong>{money(totals.grandTotal)}</strong></div><div><span>Paid</span><input type="number" value={paidAmount} onChange={(event) => setPaidAmount(Number(event.target.value))} disabled={paymentMethod === "credit"} /></div><div><span>Due</span><strong>{money(totals.due)}</strong></div></div>
             <button className="checkout-btn" disabled={saving || !cart.length || !saleType}>{saving ? "Saving Locally..." : "Checkout"}</button>
             {lastSale ? <Link className="last-invoice-link" href={`/offline-sales/${lastSale.id}`}>Open {lastSale.invoiceNo}</Link> : null}
           </aside>

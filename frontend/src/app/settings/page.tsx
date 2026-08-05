@@ -314,7 +314,7 @@ export default function SettingsPage() {
                   <input
                     className="input"
                     type="number"
-                    step="0.01"
+                    step="1"
                     value={settings.defaultTaxPercentage}
                     onChange={(e) => setSettings({ ...settings, defaultTaxPercentage: Number(e.target.value) })}
                   />

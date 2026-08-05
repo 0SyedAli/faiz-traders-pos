@@ -325,7 +325,7 @@ export default function SalesReturnsPage() {
                           <td>{item.alreadyReturned}</td>
                           <td><strong>{item.remainingQty}</strong></td>
                           <td>{money(item.unitPrice)}</td>
-                          <td><input className="input mini-input" type="number" step="0.001" min="0" max={item.remainingQty} value={input?.quantity || "0"} onChange={(e) => updateReturnItem(String(item.productVariantId), { quantity: e.target.value })} disabled={item.remainingQty <= 0} /></td>
+                          <td><input className="input mini-input" type="number" step="1" min="0" max={item.remainingQty} value={input?.quantity || "0"} onChange={(e) => updateReturnItem(String(item.productVariantId), { quantity: e.target.value })} disabled={item.remainingQty <= 0} /></td>
                           <td>
                             <select className="select" value={input?.condition || "resellable"} onChange={(e) => updateReturnItem(String(item.productVariantId), { condition: e.target.value as any })} disabled={item.remainingQty <= 0}>
                               <option value="resellable">Resellable</option>

@@ -291,7 +291,7 @@ export default function ExpensesPage() {
                 <input
                   className="input"
                   type="number"
-                  step="0.01"
+                  step="1"
                   value={form.amount}
                   onChange={(e) => setForm({ ...form, amount: e.target.value })}
                   required

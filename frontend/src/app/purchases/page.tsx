@@ -354,7 +354,7 @@ export default function PurchasesPage() {
                       <input
                         className="input"
                         type="number"
-                        step="0.001"
+                        step="1"
                         value={item.quantity}
                         onChange={(e) => updateItem(index, { quantity: e.target.value })}
                         required
@@ -366,7 +366,7 @@ export default function PurchasesPage() {
                       <input
                         className="input"
                         type="number"
-                        step="0.01"
+                        step="1"
                         value={item.purchasePrice}
                         onChange={(e) => updateItem(index, { purchasePrice: e.target.value })}
                         required
@@ -400,7 +400,7 @@ export default function PurchasesPage() {
                 <input
                   className="input"
                   type="number"
-                  step="0.01"
+                  step="1"
                   value={form.discountAmount}
                   onChange={(e) => setForm({ ...form, discountAmount: e.target.value })}
                 />
@@ -411,7 +411,7 @@ export default function PurchasesPage() {
                 <input
                   className="input"
                   type="number"
-                  step="0.01"
+                  step="1"
                   value={form.paidAmount}
                   onChange={(e) => setForm({ ...form, paidAmount: e.target.value })}
                 />

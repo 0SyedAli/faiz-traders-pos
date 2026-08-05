@@ -394,7 +394,7 @@ export default function InventoryPage() {
                   <input
                     className="input"
                     type="number"
-                    step="0.001"
+                    step="1"
                     value={adjustForm.newQuantity}
                     onChange={(e) => setAdjustForm({ ...adjustForm, newQuantity: e.target.value })}
                     required
@@ -483,7 +483,7 @@ export default function InventoryPage() {
                       <input
                         className="input"
                         type="number"
-                        step="0.001"
+                        step="1"
                         value={item.quantity}
                         onChange={(e) => updateTransferItem(index, { quantity: e.target.value })}
                         placeholder="Qty"

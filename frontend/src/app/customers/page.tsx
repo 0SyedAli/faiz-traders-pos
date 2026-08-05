@@ -366,7 +366,7 @@ export default function CustomersPage() {
                 <input
                   className="input"
                   type="number"
-                  step="0.01"
+                  step="1"
                   value={form.openingBalance}
                   onChange={(e) => setForm({ ...form, openingBalance: e.target.value })}
                   disabled={Boolean(editingId)}
@@ -512,7 +512,7 @@ export default function CustomersPage() {
                     <input
                       className="input"
                       type="number"
-                      step="0.01"
+                      step="1"
                       value={paymentAmount}
                       onChange={(e) => setPaymentAmount(e.target.value)}
                       placeholder="Received amount"
@@ -579,7 +579,7 @@ export default function CustomersPage() {
                     <input
                       className="input"
                       type="number"
-                      step="0.01"
+                      step="1"
                       value={adjustmentAmount}
                       onChange={(e) => setAdjustmentAmount(e.target.value)}
                       required
