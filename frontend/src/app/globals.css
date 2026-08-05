@@ -2903,3 +2903,413 @@ textarea.input {
     margin: 0;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Keyboard Shortcut System
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Search bar wrapper (needed to float hint badges inside) ── */
+.fast-search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.fast-search-wrap .fast-search {
+  width: 100%;
+  padding-right: 110px;
+  /* leave room for the kbd hints */
+}
+
+.fast-search-hints {
+  position: absolute;
+  right: 14px;
+  display: flex;
+  gap: 5px;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* ── Inline <kbd> hint badge ── */
+.kbd-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  font-style: normal;
+  line-height: 1;
+  padding: 3px 6px;
+  border: 1px solid rgba(15, 23, 42, 0.18);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: rgba(241, 245, 249, 0.9);
+  color: #475569;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+/* ── Checkout button inner layout (text + badge side by side) ── */
+.checkout-btn-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.checkout-btn .kbd-hint {
+  border-color: rgba(255, 255, 255, 0.35);
+  border-bottom-color: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* ── Cart "Clear" button kbd hint ── */
+.cart-head button .kbd-hint {
+  border-color: rgba(185, 28, 28, 0.25);
+  border-bottom-color: rgba(185, 28, 28, 0.4);
+  background: rgba(254, 226, 226, 0.6);
+  color: #b91c1c;
+}
+
+/* ── Shortcuts footer row at the bottom of the cart panel ── */
+.pos-shortcut-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 4px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.pos-help-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 5px 10px;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.pos-help-btn:hover {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Keyboard Shortcuts Help Modal
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.shortcuts-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: shortcutsFadeIn 0.18s ease;
+}
+
+@keyframes shortcutsFadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.shortcuts-modal-dialog {
+  width: 100%;
+  max-width: 580px;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow:
+    0 32px 80px rgba(15, 23, 42, 0.22),
+    0 0 0 1px rgba(15, 23, 42, 0.07);
+  animation: shortcutsSlideUp 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes shortcutsSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.97);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.shortcuts-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 24px 24px 20px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.shortcuts-modal-title {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.shortcuts-modal-icon {
+  font-size: 28px;
+  line-height: 1;
+  margin-top: 2px;
+}
+
+.shortcuts-modal-title h2 {
+  margin: 0 0 4px;
+  font-size: 20px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.shortcuts-modal-title p {
+  margin: 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.shortcuts-modal-close {
+  flex-shrink: 0;
+  border: 1px solid #e5e7eb;
+  background: #f8fafc;
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  color: #64748b;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.shortcuts-modal-close:hover {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #b91c1c;
+}
+
+.shortcuts-modal-body {
+  flex: 1;
+  overflow: auto;
+  padding: 20px 24px;
+  display: grid;
+  gap: 20px;
+}
+
+/* ── Shortcut Group ── */
+.shortcuts-group {
+  display: grid;
+  gap: 8px;
+}
+
+.shortcuts-group-title {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #94a3b8;
+}
+
+.shortcuts-group-rows {
+  display: grid;
+  gap: 4px;
+}
+
+.shortcuts-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  transition: background 0.12s;
+}
+
+.shortcuts-row:hover {
+  background: #f8fafc;
+}
+
+.shortcuts-keys {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 120px;
+  flex-shrink: 0;
+}
+
+.shortcuts-kbd {
+  display: inline-flex;
+  align-items: center;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  font-style: normal;
+  padding: 4px 9px;
+  border: 1px solid #cbd5e1;
+  border-bottom-width: 3px;
+  border-radius: 7px;
+  background: linear-gradient(to bottom, #f8fafc, #f1f5f9);
+  color: #1e293b;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  white-space: nowrap;
+}
+
+.shortcuts-plus {
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 700;
+}
+
+.shortcuts-desc {
+  font-size: 13.5px;
+  color: #374151;
+  font-weight: 500;
+}
+
+/* ── Modal Footer ── */
+.shortcuts-modal-footer {
+  padding: 14px 24px;
+  border-top: 1px solid #f1f5f9;
+  font-size: 12px;
+  color: #94a3b8;
+  text-align: center;
+}
+
+.shortcuts-modal-footer .shortcuts-kbd {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-bottom-width: 2px;
+}
+
+/* ── Responsive tweaks ── */
+@media (max-width: 600px) {
+  .shortcuts-modal-dialog {
+    border-radius: 14px;
+    max-height: 95vh;
+  }
+
+  .shortcuts-keys {
+    min-width: 90px;
+  }
+
+  .fast-search-hints {
+    display: none;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   POS Extended Shortcut UI Elements
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Category sidebar header row ── */
+.pos-cats-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 4px 10px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #94a3b8;
+  border-bottom: 1px solid #f1f5f9;
+  margin-bottom: 4px;
+}
+
+.pos-cats-hint {
+  display: flex;
+  gap: 4px;
+}
+
+/* ── Select + KbdHint row in cart panel ── */
+.cart-field-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cart-field-wrap .select {
+  flex: 1;
+  min-width: 0;
+}
+
+.cart-field-wrap>.kbd-hint {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+/* ── Active cart item highlight ── */
+.cart-line-active {
+  border-color: #194784 !important;
+  background: #f0f5ff !important;
+  box-shadow: 0 0 0 2px rgba(25, 71, 132, 0.15);
+}
+
+/* ── Shortcut badges that appear on the active cart item ── */
+.cart-item-shortcut-row {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+/* ── Cart empty state hint ── */
+.cart-empty-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: center;
+  padding: 16px 8px;
+  font-size: 12px;
+  color: #94a3b8;
+  text-align: center;
+}
+
+/* ── Cart navigation hint bar ── */
+.cart-nav-hint {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 0;
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.cart-nav-hint span {
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+/* ── Discount / Paid labels with inline badge ── */
+.cart-totals span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}

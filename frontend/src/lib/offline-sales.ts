@@ -49,7 +49,7 @@ export const createOfflineSale = async (input: OfflineCheckoutInput) => {
   const clientUuid = uuid();
   const saleId = clientUuid;
 
-  return offlineDb.transaction(
+  const sale = await offlineDb.transaction(
     "rw",
     [offlineDb.products, offlineDb.customers, offlineDb.sales, offlineDb.saleItems, offlineDb.syncQueue, offlineDb.meta],
     async () => {
@@ -165,8 +165,10 @@ export const createOfflineSale = async (input: OfflineCheckoutInput) => {
         });
       }
 
-      notifyOfflineDataUpdated();
       return sale;
     },
   );
+
+  notifyOfflineDataUpdated();
+  return sale;
 };

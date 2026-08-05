@@ -29,7 +29,7 @@ class MyStoreOfflineDatabase extends Dexie {
   constructor() {
     super("my-store-pos-offline");
 
-    this.version(1).stores({
+    this.version(2).stores({
       products: "&id, serverId, warehouseId, categoryId, status, updatedAt, [warehouseId+categoryId]",
       categories: "&id, serverId, name, updatedAt",
       warehouses: "&id, serverId, type, updatedAt",

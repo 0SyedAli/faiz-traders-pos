@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AiOutlineProduct } from "react-icons/ai";
 import { FaChevronDown, FaHome } from "react-icons/fa";
 import { IoSettingsOutline } from "react-icons/io5";
@@ -81,6 +81,19 @@ export function DashboardLayout({ title, children }: { title: string; children: 
       return;
     }
     setCheckingAuth(false);
+  }, [router]);
+
+  // Global shortcut: Alt+N always navigates to the POS page from anywhere
+  // (including invoice/receipt pages where PosPage's own handler isn't mounted).
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.altKey && (event.key === "n" || event.key === "N")) {
+        event.preventDefault();
+        router.push("/pos");
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [router]);
 
   useEffect(() => {
